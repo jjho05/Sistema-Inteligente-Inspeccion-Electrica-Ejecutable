@@ -238,7 +238,14 @@ def main():
     print(f"\n✓ Server starting on http://{args.host}:{args.port}")
     print("Press Ctrl+C to stop\n")
     
-    app.run(host=args.host, port=args.port, debug=DEBUG)
+    # Use threaded=True for better concurrency in production
+    app.run(
+        host=args.host,
+        port=args.port,
+        debug=DEBUG,
+        threaded=True,
+        use_reloader=False  # Disable reloader in production
+    )
 
 
 if __name__ == '__main__':
