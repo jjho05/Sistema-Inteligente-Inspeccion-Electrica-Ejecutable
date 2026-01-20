@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Inspección Eléctrica</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Sistema de Inspección Eléctrica</h1>
+            <p>Análisis automatizado conforme a NOM-001-SEDE-2012</p>
+        </header>
+
+        <main>
+            <div class="upload-section">
+                <h2>1. Selecciona el tipo de instalación</h2>
+                <select id="installation-type" class="type-selector">
+                    <option value="desconocido">❓ Desconocido / Otro</option>
+                    <option value="tablero_distribucion">📊 Tablero de Distribución</option>
+                    <option value="puesta_tierra">⚡ Sistema de Puesta a Tierra</option>
+                    <option value="alumbrado">💡 Instalación de Alumbrado</option>
+                    <option value="conexiones_empalmes">🔌 Conexiones y Empalmes</option>
+                    <option value="acometida">🏗️ Acometida Eléctrica</option>
+                    <option value="industrial">🏭 Instalación Industrial</option>
+                </select>
+
+                <h2>2. Nombre del Inspector</h2>
+                <div class="input-selector">
+                    <input type="text" id="inspector-name" placeholder="Ingresa tu nombre completo"
+                        style="width: 100%; padding: 12px; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(255,255,255,0.05); color: white; font-size: 14px;">
+                </div>
+
+                <h2>3. Carga la imagen de la instalación</h2>
+                <div class="upload-area" id="upload-area">
+                    <input type="file" id="image-input" accept="image/*" hidden>
+                    <div class="upload-placeholder">
+                        <p>📸 Arrastra una imagen aquí o haz clic para seleccionar</p>
+                        <button class="btn-primary" onclick="document.getElementById('image-input').click()">
+                            Seleccionar Imagen
+                        </button>
+                    </div>
+                    <div id="image-preview" class="image-preview" style="display: none;">
+                        <img id="preview-img" src="" alt="Preview">
+                    </div>
+                </div>
+
+                <button id="analyze-btn" class="btn-primary btn-large" disabled>
+                    Analizar Instalación
+                </button>
+            </div>
+
+            <div class="results-section" id="results-section" style="display: none;">
+                <h2>Resultados del Análisis</h2>
+
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Analizando instalación...</p>
+                    <div class="progress-steps">
+                        <div class="step" id="step-1">✓ Imagen recibida</div>
+                        <div class="step" id="step-2">⏳ Analizando elementos visuales...</div>
+                        <div class="step" id="step-3">⏳ Consultando normativa...</div>
+                        <div class="step" id="step-4">⏳ Generando dictamen...</div>
+                    </div>
+                </div>
+
+                <div id="analysis-results" class="analysis-results" style="display: none;">
+                    <div class="classification">
+                        <h3>Clasificación</h3>
+                        <div id="classification-status" class="status-badge"></div>
+                        <p id="classification-text"></p>
+                    </div>
+
+                    <div class="summary">
+                        <h3>Resumen</h3>
+                        <div id="summary-content"></div>
+                    </div>
+
+                    <div class="details">
+                        <h3>Detalles</h3>
+                        <div class="tabs">
+                            <button class="tab active" onclick="showTab('conformities')">Conformidades</button>
+                            <button class="tab" onclick="showTab('non-conformities')">No Conformidades</button>
+                            <button class="tab" onclick="showTab('observations')">Observaciones</button>
+                            <button class="tab" onclick="showTab('actions')">Acciones Sugeridas</button>
+                            <button class="tab" onclick="showTab('additional')">Observaciones Adicionales</button>
+                        </div>
+                        <div id="tab-content">
+                            <div id="conformities-tab" class="tab-panel active"></div>
+                            <div id="non-conformities-tab" class="tab-panel"></div>
+                            <div id="observations-tab" class="tab-panel"></div>
+                            <div id="actions-tab" class="tab-panel"></div>
+                            <div id="additional-tab" class="tab-panel"></div>
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <button class="btn-primary" onclick="downloadDictamen()">
+                            📄 Descargar Dictamen (PDF)
+                        </button>
+                        <button class="btn-primary" onclick="downloadDictamenWord()">
+                            📝 Descargar Dictamen (Word)
+                        </button>
+                        <button class="btn-secondary" onclick="newAnalysis()">
+                            🔄 Nuevo Análisis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>TecNM – Instituto Tecnológico de Cd. Madero</p>
+            <p>Sistema Multi-Agente de IA para Inspección Eléctrica</p>
+        </footer>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+
+</html>
