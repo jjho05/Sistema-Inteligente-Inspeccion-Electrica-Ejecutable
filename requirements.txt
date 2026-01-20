@@ -1,8 +1,8 @@
 google-generativeai>=0.3.0
 chromadb>=0.4.0
-fFlask==3.0.0
-Flask-CORS==4.0.0
-google-genai==1.0.00.0
+flask>=3.0.0
+flask-cors>=4.0.0
+pypdf2>=3.0.0
 pdfplumber>=0.10.0
 pillow>=10.0.0
 opencv-python>=4.8.0
