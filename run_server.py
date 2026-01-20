@@ -201,9 +201,13 @@ def health_check():
 
 def main():
     """Main function."""
+    # Get port from environment (for cloud deployment) or use default
+    port = int(os.getenv('PORT', PORT))
+    host = os.getenv('HOST', HOST)
+    
     parser = argparse.ArgumentParser(description='Electrical Inspection System Server')
-    parser.add_argument('--port', type=int, default=PORT, help='Port to run server on')
-    parser.add_argument('--host', default=HOST, help='Host to run server on')
+    parser.add_argument('--port', type=int, default=port, help='Port to run server on')
+    parser.add_argument('--host', default=host, help='Host to run server on')
     parser.add_argument('--no-browser', action='store_true', help='Do not open browser')
     args = parser.parse_args()
     
@@ -219,13 +223,18 @@ def main():
     # Cleanup old files (older than 120 days)
     cleanup_old_files(days=120)
     
-    # Open browser (only in main process, not in reloader)
-    if not args.no_browser and not os.environ.get('WERKZEUG_RUN_MAIN'):
+    # Open browser (only in main process, not in reloader, and not in cloud)
+    is_cloud = os.getenv('RENDER') or os.getenv('RAILWAY_ENVIRONMENT')
+    if not args.no_browser and not os.environ.get('WERKZEUG_RUN_MAIN') and not is_cloud:
         url = f"http://{args.host}:{args.port}"
         print(f"\nOpening browser at {url}...")
         webbrowser.open(url)
     
     # Run server
+    # In cloud, bind to 0.0.0.0 to accept external connections
+    if is_cloud:
+        args.host = '0.0.0.0'
+    
     print(f"\n✓ Server starting on http://{args.host}:{args.port}")
     print("Press Ctrl+C to stop\n")
     
