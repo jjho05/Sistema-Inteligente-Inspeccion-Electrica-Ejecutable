@@ -40,6 +40,10 @@ def initialize_system():
         # Validate configuration
         validate_config()
         
+        # ALWAYS Initialize agents first so they are available
+        integrator = IntegratorAgent()
+        doc_generator = DocumentGenerator()
+        
         # Check if vector database is initialized
         vector_store = get_vector_store()
         if vector_store.is_empty():
@@ -48,11 +52,9 @@ def initialize_system():
             import setup
             if not setup.main():
                 print("\n✗ Setup failed. Please run setup.py manually.")
-                return False
-        
-        # Initialize agents
-        integrator = IntegratorAgent()
-        doc_generator = DocumentGenerator()
+                # We return True anyway because agents are initialized 
+                # and vision analysis can work without the DB
+                return True
         
         print("✓ System initialized successfully")
         return True
