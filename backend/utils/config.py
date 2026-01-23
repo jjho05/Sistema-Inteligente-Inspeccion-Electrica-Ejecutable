@@ -34,8 +34,8 @@ CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", 200))
 TOP_K_RESULTS = int(os.getenv("TOP_K_RESULTS", 5))
 
 # Gemini Model Configuration
-GEMINI_MODEL = "gemini-1.5-flash"
-GEMINI_VISION_MODEL = "gemini-1.5-flash"
+GEMINI_MODEL = "gemini-1.5-flash-latest"
+GEMINI_VISION_MODEL = "gemini-1.5-flash-latest"
 GEMINI_EMBEDDING_MODEL = "gemini-embedding-001"
 
 def validate_config():

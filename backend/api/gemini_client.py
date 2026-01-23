@@ -21,6 +21,16 @@ class GeminiClient:
             raise ValueError("GEMINI_API_KEY is required")
         
         genai.configure(api_key=GEMINI_API_KEY)
+        
+        # Log available models to help debug 404 errors
+        try:
+            print("Available models:")
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    print(f" - {m.name}")
+        except Exception as e:
+            print(f"Could not list models: {e}")
+            
         self.model = genai.GenerativeModel(GEMINI_MODEL)
         self.vision_model = genai.GenerativeModel(GEMINI_VISION_MODEL)
     
