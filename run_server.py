@@ -133,7 +133,8 @@ def analyze_installation():
         
         return jsonify({
             'success': True,
-            'analysis': analysis
+            'analysis': analysis,
+            'image_filename': unique_filename
         })
         
     except Exception as e:
@@ -186,7 +187,15 @@ def generate_dictamen_word():
         # Generate Word document
         from backend.utils.word_generator import WordGenerator
         word_gen = WordGenerator()
-        word_path = word_gen.generate_dictamen(dictamen_data)
+        
+        # Resolve image path if provided
+        image_filename = data.get('image_filename')
+        image_path = None
+        if image_filename:
+            import tempfile
+            image_path = str(Path(tempfile.gettempdir()) / "electrica_temp" / image_filename)
+            
+        word_path = word_gen.generate_dictamen(dictamen_data, image_path=image_path)
         
         return jsonify({
             'success': True,

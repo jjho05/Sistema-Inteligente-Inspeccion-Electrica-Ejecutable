@@ -19,12 +19,13 @@ class WordGenerator:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-    def generate_dictamen(self, data: Dict[str, Any]) -> str:
+    def generate_dictamen(self, data: Dict[str, Any], image_path: str = None) -> str:
         """
         Generate Word dictamen from analysis data.
         
         Args:
             data: Dictionary containing analysis results
+            image_path: Optional path to the analyzed image
             
         Returns:
             Path to generated Word file
@@ -88,6 +89,18 @@ class WordGenerator:
         intro = doc.add_paragraph()
         intro.add_run("El presente dictamen técnico tiene como objetivo analizar la(s) imagen(es) proporcionada(s) de una instalación eléctrica, con especial atención a la distribución de conductores dentro de un tablero de distribución o centro de carga. Se evaluará el cumplimiento de los principios fundamentales de seguridad, diseño, selección y construcción establecidos en la NOM-001-SEDE-2012, identificando aspectos conformes, no conformes y aquellos que requieren verificación adicional, así como proporcionando recomendaciones para subsanar deficiencias.")
         intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        
+        # Insert image if provided
+        if image_path and Path(image_path).exists():
+            try:
+                doc.add_paragraph()
+                img_para = doc.add_paragraph()
+                img_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                run = img_para.add_run()
+                run.add_picture(image_path, width=Inches(5.5))
+                doc.add_paragraph()
+            except Exception as e:
+                print(f"Error inserting image into Word: {e}")
         
         doc.add_paragraph()
         

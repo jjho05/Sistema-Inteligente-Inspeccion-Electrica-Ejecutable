@@ -5,6 +5,7 @@ const API_BASE_URL = window.location.origin; // Uses current origin (http://loca
 
 let selectedImage = null;
 let currentAnalysis = null;
+let currentImageFilename = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -130,6 +131,7 @@ async function analyzeInstallation() {
 
         // Store analysis
         currentAnalysis = data.analysis;
+        currentImageFilename = data.image_filename;
 
         // Display results
         displayResults(data.analysis);
@@ -303,6 +305,7 @@ async function downloadDictamenWord() {
             },
             body: JSON.stringify({
                 analysis: currentAnalysis,
+                image_filename: currentImageFilename,
                 inspection_data: {
                     folio: 'AUTO-' + Date.now(),
                     fecha: new Date().toLocaleDateString('es-MX'),
@@ -330,6 +333,7 @@ function newAnalysis() {
     // Reset
     selectedImage = null;
     currentAnalysis = null;
+    currentImageFilename = null;
 
     // Hide results
     document.getElementById('results-section').style.display = 'none';
