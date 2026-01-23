@@ -93,22 +93,36 @@ def analyze_installation():
         installation_type = request.form.get('installation_type', 'tablero_distribucion')
         
         # Save image temporarily
-        temp_path = Path('data/temp') / image.filename
-        temp_path.parent.mkdir(parents=True, exist_ok=True)
+        import tempfile
+        import uuid
+        
+        # Use system temp directory which is always writable
+        temp_dir = Path(tempfile.gettempdir()) / "electrica_temp"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Unique filename to avoid collisions
+        unique_filename = f"{uuid.uuid4()}_{image.filename}"
+        temp_path = temp_dir / unique_filename
         image.save(str(temp_path))
         
         # Analyze
         print(f"Analyzing {image.filename} as {installation_type}...")
-        analysis = integrator.generate_complete_analysis(
-            str(temp_path),
-            installation_type
-        )
+        try:
+            analysis = integrator.generate_complete_analysis(
+                str(temp_path),
+                installation_type
+            )
+        except Exception as analysis_err:
+            print(f"Analysis internal error: {analysis_err}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': f"Error interno en agentes: {str(analysis_err)}"}), 500
         
         # Clean up
         try:
             temp_path.unlink()
-        except FileNotFoundError:
-            pass  # File already deleted, ignore
+        except Exception:
+            pass  # Ignore cleanup errors
         
         return jsonify({
             'success': True,
@@ -116,10 +130,10 @@ def analyze_installation():
         })
         
     except Exception as e:
-        print(f"Error in analysis: {e}")
+        print(f"Global error in analysis route: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': f"Error global: {str(e)}"}), 500
 
 
 @app.route('/api/generate-dictamen', methods=['POST'])
@@ -216,9 +230,11 @@ def main():
     print("=" * 60)
     
     # Initialize system
-    if not initialize_system():
-        print("\n✗ Failed to initialize system")
-        sys.exit(1)
+    success = initialize_system()
+    if not success:
+        print("\n⚠️  Warning: System initialization failed or incomplete.")
+        print("The server will start, but some features may be unavailable until setup is complete.")
+        print("Please ensure PDF files are in data/normas/ and database is initialized.\n")
     
     # Cleanup old files (older than 120 days)
     cleanup_old_files(days=120)
