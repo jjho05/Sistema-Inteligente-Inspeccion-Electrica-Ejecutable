@@ -21,6 +21,11 @@ from backend.knowledge.installation_types import get_type_names
 from backend.utils.document_generator import DocumentGenerator
 from backend.utils.file_cleanup import cleanup_old_files
 
+print("\n" + "🚀" * 30)
+print("INICIANDO SERVIDOR DE INSPECCIÓN ELÉCTRICA")
+print("SISTEMA ARRANCANDO...")
+print("🚀" * 30 + "\n")
+
 # Initialize Flask app
 app = Flask(__name__, static_folder='frontend', static_url_path='')
 CORS(app)
@@ -208,11 +213,46 @@ def download_file(filename):
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
-    vector_store = get_vector_store()
+    try:
+        vector_store = get_vector_store()
+        count = vector_store.count()
+    except:
+        count = "Error/Incomplete"
+        
     return jsonify({
         'status': 'healthy',
-        'vector_db_chunks': vector_store.count()
+        'vector_db_chunks': count,
+        'model': os.getenv('GEMINI_MODEL', 'Default')
     })
+
+
+@app.route('/api/debug-env', methods=['GET'])
+def debug_env():
+    """Endpoint for debugging environment variables on Hugging Face."""
+    config_keys = [
+        'GEMINI_API_KEY', 'PORT', 'HOST', 'DEBUG', 
+        'VECTOR_DB_PATH', 'NORMAS_PATH'
+    ]
+    
+    debug_data = {
+        'os_env': {k: "SET (Hidden)" if "KEY" in k else os.getenv(k, "NOT SET") for k in config_keys},
+        'current_directory': os.getcwd(),
+        'files_in_data': os.listdir('data') if os.path.exists('data') else "data folder missing"
+    }
+    
+    # Try to list models
+    try:
+        import google.generativeai as genai
+        if os.getenv('GEMINI_API_KEY'):
+            genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+            models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            debug_data['available_models'] = models
+        else:
+            debug_data['available_models'] = "No API Key found to list models"
+    except Exception as e:
+        debug_data['available_models_error'] = str(e)
+        
+    return jsonify(debug_data)
 
 
 def main():
