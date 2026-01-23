@@ -11,6 +11,26 @@ import io
 
 from backend.utils.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_VISION_MODEL, GEMINI_EMBEDDING_MODEL
 
+# Safety settings to avoid false positives in technical analysis
+SAFETY_SETTINGS = [
+    {
+        "category": "HARM_CATEGORY_HARASSMENT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_HATE_SPEECH",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+        "threshold": "BLOCK_NONE",
+    },
+]
+
 
 class GeminiClient:
     """Client for interacting with Gemini API."""
@@ -46,7 +66,13 @@ class GeminiClient:
             Generated text response
         """
         try:
-            response = self.model.generate_content(prompt, **kwargs)
+            response = self.model.generate_content(
+                prompt, 
+                safety_settings=SAFETY_SETTINGS,
+                **kwargs
+            )
+            if not response.candidates or not response.candidates[0].content.parts:
+                return "Error: El modelo no generó una respuesta válida (posible bloqueo o respuesta vacía)."
             return response.text
         except Exception as e:
             print(f"Error generating text: {e}")
@@ -69,7 +95,18 @@ class GeminiClient:
             image = Image.open(image_path)
             
             # Generate content with image and prompt
-            response = self.vision_model.generate_content([prompt, image], **kwargs)
+            response = self.vision_model.generate_content(
+                [prompt, image], 
+                safety_settings=SAFETY_SETTINGS,
+                **kwargs
+            )
+            
+            if not response.candidates or not response.candidates[0].content.parts:
+                # Check for blocking
+                if response.prompt_feedback:
+                    return f"Error: La imagen fue bloqueada por el filtro de seguridad. Feedback: {response.prompt_feedback}"
+                return "Error: El análisis visual no generó resultados (respuesta vacía)."
+                
             return response.text
         except Exception as e:
             print(f"Error analyzing image: {e}")
@@ -92,7 +129,17 @@ class GeminiClient:
             image = Image.open(io.BytesIO(image_bytes))
             
             # Generate content with image and prompt
-            response = self.vision_model.generate_content([prompt, image], **kwargs)
+            response = self.vision_model.generate_content(
+                [prompt, image], 
+                safety_settings=SAFETY_SETTINGS,
+                **kwargs
+            )
+            
+            if not response.candidates or not response.candidates[0].content.parts:
+                if response.prompt_feedback:
+                    return f"Error: La imagen fue bloqueada por el filtro de seguridad (bytes). Feedback: {response.prompt_feedback}"
+                return "Error: El análisis visual de bytes no generó resultados (respuesta vacía)."
+                
             return response.text
         except Exception as e:
             print(f"Error analyzing image from bytes: {e}")
