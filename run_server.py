@@ -155,10 +155,17 @@ def generate_dictamen():
         # Generate dictamen data
         dictamen_data = integrator.generate_dictamen_data(analysis, inspection_data)
         
-        # Generate PDF directly (no Word conversion needed)
+        # Resolve image path if provided
+        image_filename = data.get('image_filename')
+        image_path = None
+        if image_filename:
+            import tempfile
+            image_path = str(Path(tempfile.gettempdir()) / "electrica_temp" / image_filename)
+            
+        # Generate PDF directly
         from backend.utils.pdf_generator import PDFGenerator
         pdf_gen = PDFGenerator()
-        pdf_path = pdf_gen.generate_dictamen(dictamen_data)
+        pdf_path = pdf_gen.generate_dictamen(dictamen_data, image_path=image_path)
         
         return jsonify({
             'success': True,

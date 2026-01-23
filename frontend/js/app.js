@@ -265,6 +265,7 @@ async function downloadDictamen() {
             },
             body: JSON.stringify({
                 analysis: currentAnalysis,
+                image_filename: currentImageFilename,
                 inspection_data: {
                     folio: 'AUTO-' + Date.now(),
                     fecha: new Date().toLocaleDateString('es-MX'),

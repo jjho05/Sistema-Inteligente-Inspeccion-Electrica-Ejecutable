@@ -6,7 +6,7 @@ Generates PDF documents matching the simplified technical format.
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY
 from datetime import datetime
@@ -22,12 +22,13 @@ class PDFGenerator:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-    def generate_dictamen(self, data: Dict[str, Any]) -> str:
+    def generate_dictamen(self, data: Dict[str, Any], image_path: str = None) -> str:
         """
         Generate PDF dictamen from analysis data.
         
         Args:
             data: Dictionary containing analysis results
+            image_path: Optional path to the analyzed image
             
         Returns:
             Path to generated PDF file
@@ -130,6 +131,21 @@ class PDFGenerator:
         story.append(Paragraph("2. Análisis Detallado de la Instalación", heading1_style))
         intro_analisis = "A continuación, se presenta un análisis de los elementos visibles en la imagen, en relación con las referencias normativas señaladas y la NOM-001-SEDE-2012:"
         story.append(Paragraph(intro_analisis, body_style))
+        
+        # Insert image here (Section 2, before 2.1)
+        if image_path and Path(image_path).exists():
+            try:
+                story.append(Spacer(1, 0.15*inch))
+                # Image will be centered if we use KeepTogether or just add it
+                # ReportLab images are centered if we add them to a story logically or wrap in a table
+                # A simple way to center is to wrap it in a Paragraph with alignment but Image is better
+                img = Image(image_path, width=5.5*inch, height=None, kind='proportional')
+                img.hAlign = 'CENTER'
+                story.append(img)
+                story.append(Spacer(1, 0.15*inch))
+            except Exception as e:
+                print(f"Error inserting image into PDF: {e}")
+                
         story.append(Spacer(1, 0.15*inch))
         
         # Get NCs
