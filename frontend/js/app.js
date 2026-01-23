@@ -112,14 +112,10 @@ async function analyzeInstallation() {
             body: formData
         });
 
-        if (!response.ok) {
-            throw new Error('Error en el análisis');
-        }
-
         const data = await response.json();
 
-        if (!data.success) {
-            throw new Error(data.error || 'Error desconocido');
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || `Error del servidor (${response.status})`);
         }
 
         await updateStep(2, '✓ Análisis visual completado');
