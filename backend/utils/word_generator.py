@@ -90,18 +90,6 @@ class WordGenerator:
         intro.add_run("El presente dictamen técnico tiene como objetivo analizar la(s) imagen(es) proporcionada(s) de una instalación eléctrica, con especial atención a la distribución de conductores dentro de un tablero de distribución o centro de carga. Se evaluará el cumplimiento de los principios fundamentales de seguridad, diseño, selección y construcción establecidos en la NOM-001-SEDE-2012, identificando aspectos conformes, no conformes y aquellos que requieren verificación adicional, así como proporcionando recomendaciones para subsanar deficiencias.")
         intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         
-        # Insert image if provided
-        if image_path and Path(image_path).exists():
-            try:
-                doc.add_paragraph()
-                img_para = doc.add_paragraph()
-                img_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                run = img_para.add_run()
-                run.add_picture(image_path, width=Inches(5.5))
-                doc.add_paragraph()
-            except Exception as e:
-                print(f"Error inserting image into Word: {e}")
-        
         doc.add_paragraph()
         
         # 2. Análisis Detallado
@@ -114,6 +102,18 @@ class WordGenerator:
         p = doc.add_paragraph()
         p.add_run("A continuación, se presenta un análisis de los elementos visibles en la imagen, en relación con las referencias normativas señaladas y la NOM-001-SEDE-2012:")
         p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        
+        # Insert image here (Section 2, before 2.1)
+        if image_path and Path(image_path).exists():
+            try:
+                doc.add_paragraph()
+                img_para = doc.add_paragraph()
+                img_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                run = img_para.add_run()
+                run.add_picture(image_path, width=Inches(5.5))
+                doc.add_paragraph()
+            except Exception as e:
+                print(f"Error inserting image into Word: {e}")
         
         doc.add_paragraph()
         
