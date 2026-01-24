@@ -151,7 +151,7 @@ class WordGenerator:
                 
                 # Title
                 p = doc.add_paragraph(style='List Bullet')
-                run = p.add_run(f"✗ {desc[:100]}")
+                run = p.add_run(f"✗ {desc}")
                 run.bold = True
                 
                 # Observación

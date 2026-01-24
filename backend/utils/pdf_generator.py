@@ -175,7 +175,7 @@ class PDFGenerator:
                 severity = nc.get('severity', 'medium')
                 
                 # Title with X
-                nc_title = f"• <b>✗ {desc[:100]}</b>"
+                nc_title = f"• <b>✗ {desc}</b>"
                 story.append(Paragraph(nc_title, body_style))
                 
                 # Observación
