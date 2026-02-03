@@ -1,18 +1,17 @@
 # Python
-venv/
 __pycache__/
-*.py[cod]
-*.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
 .env
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Project specific
-data/generated/*
-!data/generated/.gitkeep
-data/temp/*
-!data/temp/.gitkeep
-data/pdf_cache/*
-data/embeddings_cache/*
-data/vector_db/*
+# Build
 build/
 dist/
 *.spec
@@ -20,3 +19,19 @@ dist/
 # System
 .DS_Store
 Thumbs.db
+
+# Project Data & Cache
+data/temp/*
+!data/temp/.gitkeep
+data/generated/*
+!data/generated/.gitkeep
+data/pdf_cache/*
+!data/pdf_cache/.gitkeep
+data/embeddings_cache/*
+!data/embeddings_cache/.gitkeep
+data/vector_db/*
+!data/vector_db/.gitkeep
+
+# IDEs
+.vscode/
+.idea/
