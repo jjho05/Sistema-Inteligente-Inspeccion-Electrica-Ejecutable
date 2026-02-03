@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Inspección Eléctrica</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Inline styles for new components */
+        .url-input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        #image-url {
+            flex-grow: 1;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.2);
+            color: white;
+        }
+        
+        .image-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .preview-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+        
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255,0,0,0.7);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .remove-btn:hover {
+            background: rgba(255,0,0,0.9);
+        }
+        
+        .download-links {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+        }
+        
+        .photo-link {
+            display: inline-block;
+            margin: 5px;
+            padding: 5px 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 4px;
+            text-decoration: none;
+            color: #4CAF50;
+            font-size: 0.9em;
+        }
+        
+        .photo-link:hover {
+            background: rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Sistema de Inspección Eléctrica</h1>
+            <p>Análisis automatizado conforme a NOM-001-SEDE-2012</p>
+        </header>
+
+        <main>
+            <div class="upload-section">
+                <h2>1. Selecciona el tipo de instalación</h2>
+                <select id="installation-type" class="type-selector">
+                    <option value="desconocido">❓ Desconocido / Otro</option>
+                    <option value="tablero_distribucion">📊 Tablero de Distribución</option>
+                    <option value="puesta_tierra">⚡ Sistema de Puesta a Tierra</option>
+                    <option value="alumbrado">💡 Instalación de Alumbrado</option>
+                    <option value="conexiones_empalmes">🔌 Conexiones y Empalmes</option>
+                    <option value="acometida">🏗️ Acometida Eléctrica</option>
+                    <option value="industrial">🏭 Instalación Industrial</option>
+                </select>
+
+                <h2>2. Nombre del Inspector</h2>
+                <div class="input-selector">
+                    <input type="text" id="inspector-name" placeholder="Ingresa tu nombre completo"
+                        style="width: 100%; padding: 12px; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(255,255,255,0.05); color: white; font-size: 14px;">
+                </div>
+
+                <h2>3. Carga imágenes de la instalación (Máx. 5)</h2>
+                <div class="upload-options">
+                    <div class="upload-area" id="upload-area">
+                        <input type="file" id="image-input" accept="image/*" multiple hidden>
+                        <div class="upload-placeholder">
+                            <p>📸 Arrastra imágenes aquí o haz clic para seleccionar</p>
+                            <button class="btn-primary" onclick="document.getElementById('image-input').click()">
+                                Seleccionar Imágenes
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="url-upload" style="margin-top: 15px;">
+                        <p style="margin-bottom: 5px; font-size: 0.9em;">O ingresa el link de una imagen:</p>
+                        <div class="url-input-group">
+                            <input type="url" id="image-url" placeholder="https://ejemplo.com/imagen.jpg">
+                            <button class="btn-secondary" id="add-url-btn" style="white-space: nowrap;">Agregar Link</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="image-preview-container" class="image-preview-grid">
+                    <!-- Previews will be added here -->
+                </div>
+                <p id="image-count" style="text-align: center; color: #aaa; margin-top: 10px; font-size: 0.9em; display: none;">0/5 imágenes seleccionadas</p>
+
+                <button id="analyze-btn" class="btn-primary btn-large" disabled>
+                    Analizar Instalación
+                </button>
+            </div>
+
+            <div class="results-section" id="results-section" style="display: none;">
+                <h2>Resultados del Análisis</h2>
+
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Analizando instalación...</p>
+                    <div class="progress-steps">
+                        <div class="step" id="step-1">✓ Imágenes recibidas</div>
+                        <div class="step" id="step-2">⏳ Analizando elementos visuales...</div>
+                        <div class="step" id="step-3">⏳ Consultando normativa...</div>
+                        <div class="step" id="step-4">⏳ Generando dictamen...</div>
+                    </div>
+                </div>
+
+                <div id="analysis-results" class="analysis-results" style="display: none;">
+                    <div class="classification">
+                        <h3>Clasificación</h3>
+                        <div id="classification-status" class="status-badge"></div>
+                        <p id="classification-text"></p>
+                    </div>
+
+                    <div class="summary">
+                        <h3>Resumen</h3>
+                        <div id="summary-content"></div>
+                    </div>
+                    
+                    <div class="download-links" id="photo-downloads" style="display: none;">
+                        <h3>📥 Descargar Fotos Originales</h3>
+                        <div id="photo-links-container"></div>
+                    </div>
+
+                    <div class="details">
+                        <h3>Detalles</h3>
+                        <div class="tabs">
+                            <button class="tab active" onclick="showTab('conformities')">Conformidades</button>
+                            <button class="tab" onclick="showTab('non-conformities')">No Conformidades</button>
+                            <button class="tab" onclick="showTab('observations')">Observaciones</button>
+                            <button class="tab" onclick="showTab('actions')">Acciones Sugeridas</button>
+                            <button class="tab" onclick="showTab('additional')">Observaciones Adicionales</button>
+                        </div>
+                        <div id="tab-content">
+                            <div id="conformities-tab" class="tab-panel active"></div>
+                            <div id="non-conformities-tab" class="tab-panel"></div>
+                            <div id="observations-tab" class="tab-panel"></div>
+                            <div id="actions-tab" class="tab-panel"></div>
+                            <div id="additional-tab" class="tab-panel"></div>
+                        </div>
+                    </div>
+
+                    <div class="actions">
+                        <button class="btn-primary" onclick="downloadDictamen()">
+                            📄 Descargar Dictamen (PDF)
+                        </button>
+                        <button class="btn-primary" onclick="downloadDictamenWord()">
+                            📝 Descargar Dictamen (Word)
+                        </button>
+                        <button class="btn-secondary" onclick="newAnalysis()">
+                            🔄 Nuevo Análisis
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>TecNM – Instituto Tecnológico de Cd. Madero</p>
+            <p>Sistema Multi-Agente de IA para Inspección Eléctrica</p>
+        </footer>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+
+</html>

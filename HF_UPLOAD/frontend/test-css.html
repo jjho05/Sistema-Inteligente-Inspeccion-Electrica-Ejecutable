@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Test - Detalles Box</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🔌 Test CSS - Detalles</h1>
+            <p>Página de prueba para verificar el espaciado del cuadro de detalles</p>
+        </header>
+
+        <main>
+            <div class="details">
+                <h3>Detalles</h3>
+                <div class="tabs">
+                    <button class="tab active">No Conformidades</button>
+                    <button class="tab">Observaciones</button>
+                </div>
+                <div id="tab-content">
+                    <div class="tab-panel active">
+                        <ul>
+                            <li>🟡 Existe un espacio vacío (knockout abierto) en el frente muerto donde falta un
+                                interruptor. (Art. 110-27)</li>
+                            <li>🟡 El gabinete presenta una oxidación leve que compromete la continuidad de la puesta a
+                                tierra. (Art. 110-12)</li>
+                            <li>🟡 La pared sobre el tablero se está desmoronando. (Art. 110-11)</li>
+                            <li>🟡 El uso de pegatinas adhesivas improvisadas y marcaje manual no constituye un
+                                directorio. (Art. 110-22)</li>
+                            <li>🟡 Al frente muerto le faltan tornillos de sujeción (esquina inferior izquierda
+                                visiblemente vacía). (Art. 408-12)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+                <h4>Información de Debug:</h4>
+                <p><strong>Padding del .details:</strong> 15px 20px (arriba/abajo izquierda/derecha)</p>
+                <p><strong>Max-height del .tab-panel:</strong> 300px</p>
+                <p><strong>Overflow:</strong> auto</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Simple tab functionality
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function () {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+
+</html>
