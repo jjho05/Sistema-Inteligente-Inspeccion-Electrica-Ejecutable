@@ -79,11 +79,15 @@ class GeminiClient:
             raise
     
     def analyze_image(self, image_path: str, prompt: str, **kwargs) -> str:
+        """Analyze single image (wrapper for analyze_images)."""
+        return self.analyze_images([image_path], prompt, **kwargs)
+
+    def analyze_images(self, image_paths: List[str], prompt: str, **kwargs) -> str:
         """
-        Analyze an image with Gemini Vision.
+        Analyze multiple images with Gemini Vision.
         
         Args:
-            image_path: Path to the image file
+            image_paths: List of paths to image files
             prompt: The prompt describing what to analyze
             **kwargs: Additional generation parameters
             
@@ -91,12 +95,26 @@ class GeminiClient:
             Analysis result as text
         """
         try:
-            # Load and prepare image
-            image = Image.open(image_path)
+            content = [prompt]
+            opened_images = []
             
-            # Generate content with image and prompt
+            # Load all images
+            for path in image_paths:
+                try:
+                    img = Image.open(path)
+                    opened_images.append(img)
+                    content.append(img)
+                except Exception as e:
+                    print(f"Error loading image {path}: {e}")
+                    # Continue with other images if one fails? 
+                    # For now, yes, but we should log it.
+            
+            if len(content) <= 1: # Only prompt
+                return "Error: No se pudieron cargar las imágenes proporcionadas."
+            
+            # Generate content with images and prompt
             response = self.vision_model.generate_content(
-                [prompt, image], 
+                content, 
                 safety_settings=SAFETY_SETTINGS,
                 **kwargs
             )
@@ -104,13 +122,20 @@ class GeminiClient:
             if not response.candidates or not response.candidates[0].content.parts:
                 # Check for blocking
                 if response.prompt_feedback:
-                    return f"Error: La imagen fue bloqueada por el filtro de seguridad. Feedback: {response.prompt_feedback}"
+                    return f"Error: Las imágenes fueron bloqueadas por el filtro de seguridad. Feedback: {response.prompt_feedback}"
                 return "Error: El análisis visual no generó resultados (respuesta vacía)."
                 
             return response.text
         except Exception as e:
-            print(f"Error analyzing image: {e}")
+            print(f"Error analyzing images: {e}")
             raise
+        finally:
+            # Close images explicitly if needed (PIL usually handles this, but good practice)
+            for img in opened_images:
+                try:
+                    img.close()
+                except:
+                    pass
     
     def analyze_image_bytes(self, image_bytes: bytes, prompt: str, **kwargs) -> str:
         """

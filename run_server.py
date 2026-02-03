@@ -90,33 +90,85 @@ def get_installation_types():
 
 @app.route('/api/analyze', methods=['POST'])
 def analyze_installation():
-    """Analyze installation image."""
+    """Analyze installation images (multiple)."""
     try:
-        # Get image and installation type
-        if 'image' not in request.files:
-            return jsonify({'success': False, 'error': 'No image provided'}), 400
-        
-        image = request.files['image']
+        # Get installation type
         installation_type = request.form.get('installation_type', 'tablero_distribucion')
         
-        # Save image temporarily
+        # Collect images from files and URLs
+        images_to_process = []
+        
+        # 1. Handle uploaded files
+        if 'images' in request.files:
+            files = request.files.getlist('images')
+            for file in files:
+                if file.filename:
+                    images_to_process.append(('file', file))
+        
+        # 2. Handle URLs
+        if 'image_urls' in request.form:
+            urls = request.form.getlist('image_urls')
+            for url in urls:
+                if url.strip():
+                    images_to_process.append(('url', url.strip()))
+        
+        if not images_to_process:
+            return jsonify({'success': False, 'error': 'No images provided'}), 400
+        
+        # Save images temporarily
         import tempfile
         import uuid
+        import urllib.request
         
-        # Use system temp directory which is always writable
         temp_dir = Path(tempfile.gettempdir()) / "electrica_temp"
         temp_dir.mkdir(parents=True, exist_ok=True)
         
-        # Unique filename to avoid collisions
-        unique_filename = f"{uuid.uuid4()}_{image.filename}"
-        temp_path = temp_dir / unique_filename
-        image.save(str(temp_path))
+        saved_paths = []
+        saved_filenames = []
         
+        for kind, item in images_to_process:
+            try:
+                unique_name = f"{uuid.uuid4()}"
+                
+                if kind == 'file':
+                    ext = Path(item.filename).suffix or '.jpg'
+                    filename = f"{unique_name}{ext}"
+                    path = temp_dir / filename
+                    item.save(str(path))
+                    saved_paths.append(str(path))
+                    saved_filenames.append(filename)
+                    
+                elif kind == 'url':
+                    # Download URL
+                    ext = '.jpg' # Default extension if unknown
+                    if '.' in item.split('/')[-1]:
+                        ext = '.' + item.split('/')[-1].split('.')[-1].split('?')[0]
+                    
+                    filename = f"{unique_name}{ext}"
+                    path = temp_dir / filename
+                    
+                    # Download with user agent to avoid blocks
+                    opener = urllib.request.build_opener()
+                    opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+                    urllib.request.install_opener(opener)
+                    urllib.request.urlretrieve(item, str(path))
+                    
+                    saved_paths.append(str(path))
+                    saved_filenames.append(filename)
+                    
+            except Exception as img_err:
+                print(f"Error processing image {item}: {img_err}")
+                continue
+
+        if not saved_paths:
+             return jsonify({'success': False, 'error': 'Failed to process any images'}), 500
+
         # Analyze
-        print(f"Analyzing {image.filename} as {installation_type}...")
+        print(f"Analyzing {len(saved_paths)} images as {installation_type}...")
         try:
+            # We pass the LIST of paths to the agent
             analysis = integrator.generate_complete_analysis(
-                str(temp_path),
+                saved_paths,  # Passing list now
                 installation_type
             )
         except Exception as analysis_err:
@@ -125,16 +177,13 @@ def analyze_installation():
             traceback.print_exc()
             return jsonify({'success': False, 'error': f"Error interno en agentes: {str(analysis_err)}"}), 500
         
-        # Clean up
-        try:
-            temp_path.unlink()
-        except Exception:
-            pass  # Ignore cleanup errors
+        # We DO NOT delete temp files immediately so user can download them
+        # Cleanup handles old files later
         
         return jsonify({
             'success': True,
             'analysis': analysis,
-            'image_filename': unique_filename
+            'image_filenames': saved_filenames # Return list
         })
         
     except Exception as e:
@@ -155,17 +204,25 @@ def generate_dictamen():
         # Generate dictamen data
         dictamen_data = integrator.generate_dictamen_data(analysis, inspection_data)
         
-        # Resolve image path if provided
-        image_filename = data.get('image_filename')
-        image_path = None
-        if image_filename:
-            import tempfile
-            image_path = str(Path(tempfile.gettempdir()) / "electrica_temp" / image_filename)
+        # Resolve image paths
+        image_filenames = data.get('image_filenames', [])
+        # Fallback for legacy/single image
+        if 'image_filename' in data and not image_filenames:
+            image_filenames = [data['image_filename']]
+            
+        image_paths = []
+        import tempfile
+        temp_dir = Path(tempfile.gettempdir()) / "electrica_temp"
+        
+        for fname in image_filenames:
+            path = temp_dir / fname
+            if path.exists():
+                image_paths.append(str(path))
             
         # Generate PDF directly
         from backend.utils.pdf_generator import PDFGenerator
         pdf_gen = PDFGenerator()
-        pdf_path = pdf_gen.generate_dictamen(dictamen_data, image_path=image_path)
+        pdf_path = pdf_gen.generate_dictamen(dictamen_data, image_paths=image_paths) # Pass list
         
         return jsonify({
             'success': True,
@@ -191,18 +248,26 @@ def generate_dictamen_word():
         # Generate dictamen data
         dictamen_data = integrator.generate_dictamen_data(analysis, inspection_data)
         
+        # Resolve image paths
+        image_filenames = data.get('image_filenames', [])
+        # Fallback
+        if 'image_filename' in data and not image_filenames:
+            image_filenames = [data['image_filename']]
+            
+        image_paths = []
+        import tempfile
+        temp_dir = Path(tempfile.gettempdir()) / "electrica_temp"
+        
+        for fname in image_filenames:
+            path = temp_dir / fname
+            if path.exists():
+                image_paths.append(str(path))
+            
         # Generate Word document
         from backend.utils.word_generator import WordGenerator
         word_gen = WordGenerator()
         
-        # Resolve image path if provided
-        image_filename = data.get('image_filename')
-        image_path = None
-        if image_filename:
-            import tempfile
-            image_path = str(Path(tempfile.gettempdir()) / "electrica_temp" / image_filename)
-            
-        word_path = word_gen.generate_dictamen(dictamen_data, image_path=image_path)
+        word_path = word_gen.generate_dictamen(dictamen_data, image_paths=image_paths) # Pass list
         
         return jsonify({
             'success': True,
@@ -215,6 +280,16 @@ def generate_dictamen_word():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/download-photo/<filename>')
+def download_photo(filename):
+    """Download original analyzed photo."""
+    try:
+        import tempfile
+        temp_dir = Path(tempfile.gettempdir()) / "electrica_temp"
+        return send_from_directory(temp_dir, filename, as_attachment=True)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 404
 
 
 @app.route('/api/download/<filename>')

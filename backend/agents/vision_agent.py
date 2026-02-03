@@ -18,31 +18,36 @@ class VisionAgent:
         """Initialize vision agent."""
         self.client = get_gemini_client()
     
-    def analyze_image(self, image_path: str, installation_type: str,
+    def analyze_image(self, image_paths: List[str], installation_type: str,
                      additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Analyze an electrical installation image.
+        Analyze electrical installation images (multiple).
         
         Args:
-            image_path: Path to the image file
+            image_paths: List of paths to image files
             installation_type: Type of installation (e.g., 'tablero_distribucion')
             additional_info: Optional additional context
             
         Returns:
             Analysis results with detected elements and non-conformities
         """
-        print(f"Analyzing image: {image_path}")
+        # Backward compatibility for single string
+        if isinstance(image_paths, str):
+            image_paths = [image_paths]
+            
+        print(f"Analyzing {len(image_paths)} images")
         print(f"Installation type: {installation_type}")
         
         # Build context
         context = create_vision_context(installation_type, additional_info)
         prompt = context['prompt']
         
-        # Analyze image with Gemini Vision
+        # Analyze images with Gemini Vision (Multimodal)
         print("Sending to Gemini Vision...")
-        response = self.client.analyze_image(image_path, prompt)
+        # We need to update gemini client to accept list of images
+        response = self.client.analyze_images(image_paths, prompt)
         
-        # DEBUG: Print raw response (full response for debugging)
+        # DEBUG: Print raw response
         print("\n" + "="*60)
         print("GEMINI VISION RAW RESPONSE:")
         print("="*60)

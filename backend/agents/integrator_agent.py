@@ -18,13 +18,13 @@ class IntegratorAgent:
         self.vision_agent = VisionAgent()
         self.normative_agent = NormativeAgent()
     
-    def generate_complete_analysis(self, image_path: str, installation_type: str,
+    def generate_complete_analysis(self, image_paths: List[str], installation_type: str,
                                    additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Generate complete analysis integrating vision and normative verification.
         
         Args:
-            image_path: Path to installation image
+            image_paths: List of paths to installation images
             installation_type: Type of installation
             additional_info: Optional additional context
             
@@ -33,10 +33,14 @@ class IntegratorAgent:
         """
         print("=== Starting Complete Analysis ===")
         
+        # Backward compatibility
+        if isinstance(image_paths, str):
+            image_paths = [image_paths]
+        
         # Step 1: Visual analysis
         print("\n[1/3] Visual Analysis...")
         vision_results = self.vision_agent.analyze_image(
-            image_path, installation_type, additional_info
+            image_paths, installation_type, additional_info
         )
         
         # Step 2: Normative verification (DISABLED for speed - Vision Agent is sufficient)
@@ -243,13 +247,13 @@ class IntegratorAgent:
             return "OBSERVACIÓN. Se recomienda atender esta condición."
 
 
-def analyze_installation(image_path: str, installation_type: str,
+def analyze_installation(image_paths: List[str], installation_type: str,
                         additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Convenience function for complete installation analysis.
     
     Args:
-        image_path: Path to image
+        image_paths: List of paths to images
         installation_type: Type of installation
         additional_info: Optional additional context
         
@@ -257,4 +261,4 @@ def analyze_installation(image_path: str, installation_type: str,
         Complete analysis report
     """
     agent = IntegratorAgent()
-    return agent.generate_complete_analysis(image_path, installation_type, additional_info)
+    return agent.generate_complete_analysis(image_paths, installation_type, additional_info)

@@ -19,17 +19,24 @@ class WordGenerator:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-    def generate_dictamen(self, data: Dict[str, Any], image_path: str = None) -> str:
+    def generate_dictamen(self, data: Dict[str, Any], image_paths: List[str] = None, image_path: str = None) -> str:
         """
         Generate Word dictamen from analysis data.
         
         Args:
             data: Dictionary containing analysis results
-            image_path: Optional path to the analyzed image
+            image_paths: Optional list of paths to analyzed images
+            image_path: Legacy support for single image path
             
         Returns:
             Path to generated Word file
         """
+        # Handle legacy image_path
+        if image_path and not image_paths:
+            image_paths = [image_path]
+        elif not image_paths:
+            image_paths = []
+            
         # Generate filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"Dictamen_AUTO-{int(datetime.now().timestamp() * 1000)}_{timestamp}.docx"
@@ -100,20 +107,28 @@ class WordGenerator:
         h1_run.font.color.rgb = RGBColor(44, 82, 130)
         
         p = doc.add_paragraph()
-        p.add_run("A continuación, se presenta un análisis de los elementos visibles en la imagen, en relación con las referencias normativas señaladas y la NOM-001-SEDE-2012:")
+        p.add_run("A continuación, se presenta un análisis de los elementos visibles en la(s) imagen(es), en relación con las referencias normativas señaladas y la NOM-001-SEDE-2012:")
         p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         
-        # Insert image here (Section 2, before 2.1)
-        if image_path and Path(image_path).exists():
-            try:
-                doc.add_paragraph()
-                img_para = doc.add_paragraph()
-                img_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                run = img_para.add_run()
-                run.add_picture(image_path, width=Inches(5.5))
-                doc.add_paragraph()
-            except Exception as e:
-                print(f"Error inserting image into Word: {e}")
+        # Insert images (Sequential)
+        if image_paths:
+            doc.add_paragraph()
+            for i, img_path in enumerate(image_paths):
+                if Path(img_path).exists():
+                    try:
+                        img_para = doc.add_paragraph()
+                        img_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        run = img_para.add_run()
+                        run.add_picture(img_path, width=Inches(5.5))
+                        
+                        # Add caption
+                        caption = doc.add_paragraph(f"Figura {i+1}: Vista de la instalación analizada")
+                        caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        caption.style = 'Caption' if 'Caption' in doc.styles else 'Normal'
+                        
+                        doc.add_paragraph()
+                    except Exception as e:
+                        print(f"Error inserting image into Word: {e}")
         
         doc.add_paragraph()
         
