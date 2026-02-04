@@ -3,7 +3,7 @@ Vision Agent - Analyzes electrical installation images using Gemini Vision.
 Detects elements and non-conformities in electrical installations.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pathlib import Path
 
 from backend.api.gemini_client import get_gemini_client
