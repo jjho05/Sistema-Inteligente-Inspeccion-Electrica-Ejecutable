@@ -17,7 +17,15 @@
 
         <main>
             <div class="upload-section">
-                <h2>1. Selecciona el tipo de instalación</h2>
+                <h2>1. Normativa a Evaluar</h2>
+                <div class="input-selector" style="margin-bottom: 20px;">
+                    <select id="norm-selector" class="type-selector">
+                        <option value="nom" selected>🇲🇽 Norma Oficial Mexicana (NOM-001-SEDE-2012)</option>
+                        <option value="nec">🇺🇸 National Electrical Code (NEC - USA)</option>
+                    </select>
+                </div>
+
+                <h2>2. Selecciona el tipo de instalación</h2>
                 <select id="installation-type" class="type-selector">
                     <option value="desconocido">❓ Desconocido / Otro</option>
                     <option value="tablero_distribucion">📊 Tablero de Distribución</option>
@@ -28,13 +36,13 @@
                     <option value="industrial">🏭 Instalación Industrial</option>
                 </select>
 
-                <h2>2. Nombre del Inspector</h2>
+                <h2>3. Nombre del Inspector</h2>
                 <div class="input-selector">
                     <input type="text" id="inspector-name" placeholder="Ingresa tu nombre completo"
                         style="width: 100%; padding: 12px; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(255,255,255,0.05); color: white; font-size: 14px;">
                 </div>
 
-                <h2>3. Carga la imagen de la instalación</h2>
+                <h2>4. Carga la imagen de la instalación</h2>
                 <div class="upload-area" id="upload-area">
                     <input type="file" id="image-input" accept="image/*" hidden>
                     <div class="upload-placeholder">
