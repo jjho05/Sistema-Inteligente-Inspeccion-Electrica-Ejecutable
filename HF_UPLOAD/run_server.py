@@ -104,6 +104,10 @@ def analyze_installation():
             for file in files:
                 if file.filename:
                     images_to_process.append(('file', file))
+        elif 'image' in request.files:
+            file = request.files['image']
+            if file.filename:
+                images_to_process.append(('file', file))
         
         # 2. Handle URLs
         if 'image_urls' in request.form:
@@ -183,7 +187,8 @@ def analyze_installation():
         return jsonify({
             'success': True,
             'analysis': analysis,
-            'image_filenames': saved_filenames # Return list
+            'image_filenames': saved_filenames, # Return list
+            'image_filename': saved_filenames[0] if saved_filenames else None # Legacy compatibility
         })
         
     except Exception as e:
