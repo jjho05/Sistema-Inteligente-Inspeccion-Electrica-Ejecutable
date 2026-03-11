@@ -3,10 +3,9 @@
 // API Configuration
 const API_BASE_URL = window.location.origin; // Uses current origin (http://localhost:8080)
 
-let selectedImages = []; // Array of File objects or URL strings
-const MAX_IMAGES = 5;
+let selectedImage = null;
 let currentAnalysis = null;
-let currentImageFilenames = [];
+let currentImageFilename = null;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,13 +17,9 @@ function setupEventListeners() {
     const imageInput = document.getElementById('image-input');
     const uploadArea = document.getElementById('upload-area');
     const analyzeBtn = document.getElementById('analyze-btn');
-    const addUrlBtn = document.getElementById('add-url-btn');
 
-    // Image selection (File Input)
+    // Image selection
     imageInput.addEventListener('change', handleImageSelect);
-
-    // URL Input
-    addUrlBtn.addEventListener('click', handleUrlAdd);
 
     // Drag and drop
     uploadArea.addEventListener('dragover', (e) => {
@@ -42,7 +37,7 @@ function setupEventListeners() {
 
         const files = e.dataTransfer.files;
         if (files.length > 0) {
-            handleFiles(files);
+            handleImageFile(files[0]);
         }
     });
 
@@ -51,116 +46,40 @@ function setupEventListeners() {
 }
 
 function handleImageSelect(e) {
-    handleFiles(e.target.files);
-    // Reset input so same files can be selected again if cleared
-    e.target.value = ''; 
+    const file = e.target.files[0];
+    if (file) {
+        handleImageFile(file);
+    }
 }
 
-function handleFiles(files) {
-    if (selectedImages.length + files.length > MAX_IMAGES) {
-        alert(`Solo puedes subir un máximo de ${MAX_IMAGES} imágenes.`);
+function handleImageFile(file) {
+    if (!file.type.startsWith('image/')) {
+        alert('Por favor selecciona un archivo de imagen');
         return;
     }
 
-    let added = 0;
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (!file.type.startsWith('image/')) {
-            alert(`El archivo "${file.name}" no es una imagen válida.`);
-            continue;
-        }
-        selectedImages.push(file);
-        added++;
-    }
+    selectedImage = file;
 
-    if (added > 0) {
-        updateUI();
-    }
-}
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = document.getElementById('image-preview');
+        const previewImg = document.getElementById('preview-img');
+        const placeholder = document.querySelector('.upload-placeholder');
 
-async function handleUrlAdd() {
-    const urlInput = document.getElementById('image-url');
-    const url = urlInput.value.trim();
-
-    if (!url) return;
-
-    if (selectedImages.length >= MAX_IMAGES) {
-        alert(`Límite de ${MAX_IMAGES} imágenes alcanzado.`);
-        return;
-    }
-
-    // Basic validation
-    try {
-        new URL(url);
-    } catch (_) {
-        alert('Por favor ingresa una URL válida.');
-        return;
-    }
-
-    // Optional: Check if it's an image (head request) or just add it
-    // For simplicity, we assume it's an image. The backend will validate/download.
-    selectedImages.push({ type: 'url', value: url });
-    urlInput.value = '';
-    updateUI();
-}
-
-function removeImage(index) {
-    selectedImages.splice(index, 1);
-    updateUI();
-}
-
-function updateUI() {
-    const container = document.getElementById('image-preview-container');
-    const placeholder = document.querySelector('.upload-placeholder');
-    const analyzeBtn = document.getElementById('analyze-btn');
-    const countLabel = document.getElementById('image-count');
-
-    container.innerHTML = '';
-
-    if (selectedImages.length === 0) {
-        container.style.display = 'none';
-        placeholder.style.display = 'block';
-        analyzeBtn.disabled = true;
-        countLabel.style.display = 'none';
-    } else {
+        previewImg.src = e.target.result;
+        preview.style.display = 'block';
         placeholder.style.display = 'none';
-        container.style.display = 'grid'; // Ensure grid display
-        analyzeBtn.disabled = false;
-        
-        countLabel.textContent = `${selectedImages.length}/${MAX_IMAGES} imágenes seleccionadas`;
-        countLabel.style.display = 'block';
 
-        selectedImages.forEach((item, index) => {
-            const div = document.createElement('div');
-            div.className = 'preview-item';
-
-            const img = document.createElement('img');
-            
-            if (item.type === 'url') {
-                img.src = item.value;
-                img.onerror = () => { img.src = 'assets/icons/error_image.png'; /* Fallback */ };
-            } else {
-                // File object
-                const reader = new FileReader();
-                reader.onload = (e) => { img.src = e.target.result; };
-                reader.readAsDataURL(item);
-            }
-
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'remove-btn';
-            removeBtn.innerHTML = '×';
-            removeBtn.onclick = () => removeImage(index);
-
-            div.appendChild(img);
-            div.appendChild(removeBtn);
-            container.appendChild(div);
-        });
-    }
+        // Enable analyze button
+        document.getElementById('analyze-btn').disabled = false;
+    };
+    reader.readAsDataURL(file);
 }
 
 async function analyzeInstallation() {
-    if (selectedImages.length === 0) {
-        alert('Por favor selecciona al menos una imagen');
+    if (!selectedImage) {
+        alert('Por favor selecciona una imagen primero');
         return;
     }
 
@@ -179,23 +98,15 @@ async function analyzeInstallation() {
 
     try {
         // Simulate progress steps
-        await updateStep(1, '✓ Imágenes recibidas');
+        await updateStep(1, '✓ Imagen recibida');
         await sleep(500);
 
         await updateStep(2, '⏳ Analizando elementos visuales...');
 
-        // Prepare FormData
+        // Send to server
         const formData = new FormData();
+        formData.append('image', selectedImage);
         formData.append('installation_type', installationType);
-
-        // Append files and URLs separately
-        selectedImages.forEach((item) => {
-            if (item.type === 'url') {
-                formData.append('image_urls', item.value);
-            } else {
-                formData.append('images', item);
-            }
-        });
 
         const response = await fetch(`${API_BASE_URL}/api/analyze`, {
             method: 'POST',
@@ -220,13 +131,10 @@ async function analyzeInstallation() {
 
         // Store analysis
         currentAnalysis = data.analysis;
-        currentImageFilenames = data.image_filenames || [];
+        currentImageFilename = data.image_filename;
 
         // Display results
         displayResults(data.analysis);
-        
-        // Setup download links for original photos
-        setupPhotoDownloads(currentImageFilenames);
 
         // Hide loading, show results
         loading.style.display = 'none';
@@ -237,29 +145,6 @@ async function analyzeInstallation() {
         alert(`Error en el análisis: ${error.message}`);
         loading.style.display = 'none';
     }
-}
-
-function setupPhotoDownloads(filenames) {
-    const container = document.getElementById('photo-links-container');
-    const section = document.getElementById('photo-downloads');
-    
-    if (!filenames || filenames.length === 0) {
-        section.style.display = 'none';
-        return;
-    }
-    
-    container.innerHTML = '';
-    filenames.forEach((filename, index) => {
-        const a = document.createElement('a');
-        a.href = `/api/download-photo/${filename}`;
-        a.className = 'photo-link';
-        a.target = '_blank';
-        a.textContent = `📥 Foto ${index + 1}`;
-        a.download = filename; // Suggest filename
-        container.appendChild(a);
-    });
-    
-    section.style.display = 'block';
 }
 
 function displayResults(analysis) {
@@ -315,7 +200,7 @@ function displayResults(analysis) {
         observationsTab.innerHTML = '<p>Sin observaciones adicionales.</p>';
     }
 
-    // Acciones Sugeridas
+    // Acciones Sugeridas (from acciones_sugeridas or recommendations)
     const actionsTab = document.getElementById('actions-tab');
     const actions = analysis.vision_analysis.acciones_sugeridas || analysis.vision_analysis.recommendations || [];
 
@@ -324,6 +209,7 @@ function displayResults(analysis) {
             actions.map(action => `<li>• ${action}</li>`).join('') +
             '</ul>';
     } else {
+        // If no actions list, try to show dictamen
         const dictamen = analysis.vision_analysis.dictamen || '';
         if (dictamen) {
             actionsTab.innerHTML = `<p>${dictamen}</p>`;
@@ -332,7 +218,7 @@ function displayResults(analysis) {
         }
     }
 
-    // Observaciones Adicionales
+    // Observaciones Adicionales (from observaciones_adicionales or risks)
     const additionalTab = document.getElementById('additional-tab');
     const additionalObs = analysis.vision_analysis.observaciones_adicionales || '';
     const risks = analysis.vision_analysis.risks || [];
@@ -349,6 +235,7 @@ function displayResults(analysis) {
 }
 
 function showTab(tabName) {
+    // Hide all tabs
     document.querySelectorAll('.tab-panel').forEach(panel => {
         panel.classList.remove('active');
     });
@@ -356,6 +243,7 @@ function showTab(tabName) {
         tab.classList.remove('active');
     });
 
+    // Show selected tab
     document.getElementById(`${tabName}-tab`).classList.add('active');
     event.target.classList.add('active');
 }
@@ -367,6 +255,7 @@ async function downloadDictamen() {
     }
 
     try {
+        // Get inspector name
         const inspectorName = document.getElementById('inspector-name').value.trim() || '[ Tu Nombre ]';
 
         const response = await fetch(`${API_BASE_URL}/api/generate-dictamen`, {
@@ -376,7 +265,7 @@ async function downloadDictamen() {
             },
             body: JSON.stringify({
                 analysis: currentAnalysis,
-                image_filenames: currentImageFilenames, // Send list of filenames
+                image_filename: currentImageFilename,
                 inspection_data: {
                     folio: 'AUTO-' + Date.now(),
                     fecha: new Date().toLocaleDateString('es-MX'),
@@ -388,6 +277,7 @@ async function downloadDictamen() {
         const data = await response.json();
 
         if (data.success) {
+            // Download file
             window.location.href = `/api/download/${data.filename}`;
         } else {
             alert('Error generando dictamen: ' + data.error);
@@ -406,6 +296,7 @@ async function downloadDictamenWord() {
     }
 
     try {
+        // Get inspector name
         const inspectorName = document.getElementById('inspector-name').value.trim() || '[ Tu Nombre ]';
 
         const response = await fetch(`${API_BASE_URL}/api/generate-dictamen-word`, {
@@ -415,7 +306,7 @@ async function downloadDictamenWord() {
             },
             body: JSON.stringify({
                 analysis: currentAnalysis,
-                image_filenames: currentImageFilenames, // Send list of filenames
+                image_filename: currentImageFilename,
                 inspection_data: {
                     folio: 'AUTO-' + Date.now(),
                     fecha: new Date().toLocaleDateString('es-MX'),
@@ -427,6 +318,7 @@ async function downloadDictamenWord() {
         const data = await response.json();
 
         if (data.success) {
+            // Download file
             window.location.href = `/api/download/${data.filename}`;
         } else {
             alert('Error generando dictamen Word: ' + data.error);
@@ -439,13 +331,18 @@ async function downloadDictamenWord() {
 }
 
 function newAnalysis() {
-    selectedImages = [];
+    // Reset
+    selectedImage = null;
     currentAnalysis = null;
-    currentImageFilenames = [];
+    currentImageFilename = null;
 
+    // Hide results
     document.getElementById('results-section').style.display = 'none';
-    updateUI();
-    document.getElementById('image-url').value = '';
+
+    // Reset image
+    document.getElementById('image-preview').style.display = 'none';
+    document.querySelector('.upload-placeholder').style.display = 'block';
+    document.getElementById('analyze-btn').disabled = true;
 
     // Reset steps
     for (let i = 1; i <= 4; i++) {
@@ -457,6 +354,7 @@ function newAnalysis() {
         }
     }
 
+    // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -477,6 +375,6 @@ async function checkServerHealth() {
         const data = await response.json();
         console.log('Server health:', data);
     } catch (error) {
-        console.warn('Could not connect to server.');
+        console.warn('Could not connect to server. Running in standalone mode.');
     }
 }
