@@ -389,6 +389,9 @@ def main():
     print("Sistema de Inspección Eléctrica")
     print("=" * 60)
     
+    # Detect if running in cloud
+    is_cloud = os.getenv('RENDER') or os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('SPACE_ID')
+    
     # Start background initialization
     init_thread = threading.Thread(target=initialize_system, daemon=True)
     init_thread.start()
@@ -398,6 +401,12 @@ def main():
     if is_cloud:
         args.host = '0.0.0.0'
         print("☁️ Cloud environment detected, binding to 0.0.0.0")
+    
+    # Open browser (only in main process, and not in cloud)
+    if not args.no_browser and not is_cloud:
+        url = f"http://{args.host}:{args.port}"
+        print(f"\nOpening browser at {url}...")
+        webbrowser.open(url)
     
     print(f"\n✓ Server starting on http://{args.host}:{args.port}")
     print("Press Ctrl+C to stop\n")
