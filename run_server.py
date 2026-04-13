@@ -10,6 +10,8 @@ from pathlib import Path
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import argparse
+import threading
+import time
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -30,16 +32,19 @@ print("🚀" * 30 + "\n")
 app = Flask(__name__, static_folder='frontend', static_url_path='')
 CORS(app)
 
-# Initialize agents
+# Global state for background initialization
+system_ready = False
+initialization_error = None
 integrator = None
 doc_generator = None
 
-
 def initialize_system():
     """Initialize system components."""
-    global integrator, doc_generator
+    global integrator, doc_generator, system_ready, initialization_error
     
-    print("Initializing system...")
+    print("\n" + "⚙️" * 30)
+    print("BACKGROUND INITIALIZATION STARTING")
+    print("⚙️" * 30 + "\n")
     
     try:
         # Validate configuration
@@ -61,13 +66,18 @@ def initialize_system():
                 # and vision analysis can work without the DB
                 return True
         
-        print("✓ System initialized successfully")
+        
+        print("\n" + "✓" * 30)
+        print("SYSTEM INITIALIZED SUCCESSFULLY")
+        print("✓" * 30 + "\n")
+        system_ready = True
         return True
         
     except Exception as e:
-        print(f"✗ Initialization failed: {e}")
+        print(f"\n✗ Initialization failed: {e}")
         import traceback
         traceback.print_exc()
+        initialization_error = str(e)
         return False
 
 
@@ -309,14 +319,26 @@ def download_file(filename):
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
+    global system_ready, initialization_error
+    
     try:
-        vector_store = get_vector_store()
-        count = vector_store.count()
-    except:
-        count = "Error/Incomplete"
+        if system_ready:
+            vector_store = get_vector_store()
+            count = vector_store.count()
+            status = 'healthy'
+        else:
+            count = 0
+            status = 'initializing'
+            if initialization_error:
+                status = 'error'
+    except Exception as e:
+        count = f"Error: {str(e)}"
+        status = 'error'
         
     return jsonify({
-        'status': 'healthy',
+        'status': status,
+        'ready': system_ready,
+        'error': initialization_error,
         'vector_db_chunks': count,
         'model': os.getenv('GEMINI_MODEL', 'Default')
     })
@@ -336,12 +358,12 @@ def debug_env():
         'files_in_data': os.listdir('data') if os.path.exists('data') else "data folder missing"
     }
     
-    # Try to list models
+    # Try to list models using new SDK
     try:
-        import google.generativeai as genai
+        from google import genai
         if os.getenv('GEMINI_API_KEY'):
-            genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
+            models = [m.name for m in client.models.list() if 'generateContent' in m.supported_generation_methods]
             debug_data['available_models'] = models
         else:
             debug_data['available_models'] = "No API Key found to list models"
@@ -367,27 +389,15 @@ def main():
     print("Sistema de Inspección Eléctrica")
     print("=" * 60)
     
-    # Initialize system
-    success = initialize_system()
-    if not success:
-        print("\n⚠️  Warning: System initialization failed or incomplete.")
-        print("The server will start, but some features may be unavailable until setup is complete.")
-        print("Please ensure PDF files are in data/normas/ and database is initialized.\n")
-    
-    # Cleanup old files (older than 120 days)
-    cleanup_old_files(days=120)
-    
-    # Open browser (only in main process, not in reloader, and not in cloud)
-    is_cloud = os.getenv('RENDER') or os.getenv('RAILWAY_ENVIRONMENT')
-    if not args.no_browser and not os.environ.get('WERKZEUG_RUN_MAIN') and not is_cloud:
-        url = f"http://{args.host}:{args.port}"
-        print(f"\nOpening browser at {url}...")
-        webbrowser.open(url)
+    # Start background initialization
+    init_thread = threading.Thread(target=initialize_system, daemon=True)
+    init_thread.start()
     
     # Run server
     # In cloud, bind to 0.0.0.0 to accept external connections
     if is_cloud:
         args.host = '0.0.0.0'
+        print("☁️ Cloud environment detected, binding to 0.0.0.0")
     
     print(f"\n✓ Server starting on http://{args.host}:{args.port}")
     print("Press Ctrl+C to stop\n")
@@ -396,7 +406,7 @@ def main():
     app.run(
         host=args.host,
         port=args.port,
-        debug=DEBUG,
+        debug=False, # Force debug off in production initialization flow
         threaded=True,
         use_reloader=False  # Disable reloader in production
     )

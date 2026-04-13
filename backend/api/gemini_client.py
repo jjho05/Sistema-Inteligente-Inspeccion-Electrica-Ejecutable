@@ -1,58 +1,67 @@
 """
 Gemini API client for multimodal analysis and embeddings.
-Handles all interactions with Google's Gemini API.
+Handles all interactions with Google's Gemini API using the new google-genai SDK.
 """
 
-import google.generativeai as genai
+import os
 from typing import List, Dict, Any, Optional
 import base64
-from PIL import Image
 import io
+from PIL import Image
+from google import genai
+from google.genai import types
 
 from backend.utils.config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_VISION_MODEL, GEMINI_EMBEDDING_MODEL
 
-# Safety settings to avoid false positives in technical analysis
-SAFETY_SETTINGS = [
-    {
-        "category": "HARM_CATEGORY_HARASSMENT",
-        "threshold": "BLOCK_NONE",
-    },
-    {
-        "category": "HARM_CATEGORY_HATE_SPEECH",
-        "threshold": "BLOCK_NONE",
-    },
-    {
-        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-        "threshold": "BLOCK_NONE",
-    },
-    {
-        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-        "threshold": "BLOCK_NONE",
-    },
+# Configuration for safety settings
+# Note: Safety settings structure changed in the new SDK
+SAFETY_CONFIG = [
+    types.SafetySetting(
+        category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold=types.HarmBlockThreshold.BLOCK_NONE,
+    ),
+    types.SafetySetting(
+        category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold=types.HarmBlockThreshold.BLOCK_NONE,
+    ),
+    types.SafetySetting(
+        category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold=types.HarmBlockThreshold.BLOCK_NONE,
+    ),
+    types.SafetySetting(
+        category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold=types.HarmBlockThreshold.BLOCK_NONE,
+    ),
 ]
 
 
 class GeminiClient:
-    """Client for interacting with Gemini API."""
+    """Client for interacting with Gemini API using the new google-genai SDK."""
     
     def __init__(self):
         """Initialize Gemini client with API key."""
         if not GEMINI_API_KEY:
             raise ValueError("GEMINI_API_KEY is required")
         
-        genai.configure(api_key=GEMINI_API_KEY)
+        # Initialize the new SDK client
+        self.client = genai.Client(api_key=GEMINI_API_KEY)
         
-        # Log available models to help debug 404 errors
+        # Log available models to help debug
         try:
-            print("Available models:")
-            for m in genai.list_models():
+            print("Listing available models from new SDK...")
+            # The new SDK list_models returns a generator of model objects
+            for m in self.client.models.list():
+                # Checking if it supports content generation
                 if 'generateContent' in m.supported_generation_methods:
-                    print(f" - {m.name}")
+                    # m is a Model object, name is likely m.name
+                    pass # We print only if needed to avoid log clutter
+            print("✓ Models listed successfully")
         except Exception as e:
             print(f"Could not list models: {e}")
             
-        self.model = genai.GenerativeModel(GEMINI_MODEL)
-        self.vision_model = genai.GenerativeModel(GEMINI_VISION_MODEL)
+        self.text_model = GEMINI_MODEL
+        self.vision_model = GEMINI_VISION_MODEL
+        self.embedding_model = GEMINI_EMBEDDING_MODEL
     
     def generate_text(self, prompt: str, **kwargs) -> str:
         """
@@ -66,12 +75,17 @@ class GeminiClient:
             Generated text response
         """
         try:
-            response = self.model.generate_content(
-                prompt, 
-                safety_settings=SAFETY_SETTINGS,
+            config = types.GenerateContentConfig(
+                safety_settings=SAFETY_CONFIG,
                 **kwargs
             )
-            if not response.candidates or not response.candidates[0].content.parts:
+            response = self.client.models.generate_content(
+                model=self.text_model,
+                contents=prompt,
+                config=config
+            )
+            
+            if not response.text:
                 return "Error: El modelo no generó una respuesta válida (posible bloqueo o respuesta vacía)."
             return response.text
         except Exception as e:
@@ -95,34 +109,46 @@ class GeminiClient:
             Analysis result as text
         """
         try:
-            content = [prompt]
+            contents = [prompt]
             opened_images = []
             
-            # Load all images
+            # Load all images and convert to Parts
             for path in image_paths:
                 try:
                     img = Image.open(path)
+                    # Convert PIL Image to bytes for the new SDK
+                    img_byte_arr = io.BytesIO()
+                    img.save(img_byte_arr, format=img.format or 'JPEG')
+                    img_bytes = img_byte_arr.getvalue()
+                    
+                    # Create Part with bytes and mime_type
+                    mime_type = f"image/{ (img.format or 'JPEG').lower() }"
+                    if mime_type == "image/jpg": mime_type = "image/jpeg"
+                    
+                    contents.append(types.Part.from_bytes(
+                        data=img_bytes,
+                        mime_type=mime_type
+                    ))
                     opened_images.append(img)
-                    content.append(img)
                 except Exception as e:
                     print(f"Error loading image {path}: {e}")
-                    # Continue with other images if one fails? 
-                    # For now, yes, but we should log it.
             
-            if len(content) <= 1: # Only prompt
+            if len(contents) <= 1: # Only prompt
                 return "Error: No se pudieron cargar las imágenes proporcionadas."
             
             # Generate content with images and prompt
-            response = self.vision_model.generate_content(
-                content, 
-                safety_settings=SAFETY_SETTINGS,
+            config = types.GenerateContentConfig(
+                safety_settings=SAFETY_CONFIG,
                 **kwargs
             )
             
-            if not response.candidates or not response.candidates[0].content.parts:
-                # Check for blocking
-                if response.prompt_feedback:
-                    return f"Error: Las imágenes fueron bloqueadas por el filtro de seguridad. Feedback: {response.prompt_feedback}"
+            response = self.client.models.generate_content(
+                model=self.vision_model,
+                contents=contents,
+                config=config
+            )
+            
+            if not response.text:
                 return "Error: El análisis visual no generó resultados (respuesta vacía)."
                 
             return response.text
@@ -130,7 +156,6 @@ class GeminiClient:
             print(f"Error analyzing images: {e}")
             raise
         finally:
-            # Close images explicitly if needed (PIL usually handles this, but good practice)
             for img in opened_images:
                 try:
                     img.close()
@@ -140,30 +165,29 @@ class GeminiClient:
     def analyze_image_bytes(self, image_bytes: bytes, prompt: str, **kwargs) -> str:
         """
         Analyze an image from bytes with Gemini Vision.
-        
-        Args:
-            image_bytes: Image data as bytes
-            prompt: The prompt describing what to analyze
-            **kwargs: Additional generation parameters
-            
-        Returns:
-            Analysis result as text
         """
         try:
-            # Load image from bytes
-            image = Image.open(io.BytesIO(image_bytes))
+            # Determine mime type (simple check)
+            mime_type = "image/jpeg" # Default
             
-            # Generate content with image and prompt
-            response = self.vision_model.generate_content(
-                [prompt, image], 
-                safety_settings=SAFETY_SETTINGS,
+            contents = [
+                prompt,
+                types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+            ]
+            
+            config = types.GenerateContentConfig(
+                safety_settings=SAFETY_CONFIG,
                 **kwargs
             )
             
-            if not response.candidates or not response.candidates[0].content.parts:
-                if response.prompt_feedback:
-                    return f"Error: La imagen fue bloqueada por el filtro de seguridad (bytes). Feedback: {response.prompt_feedback}"
-                return "Error: El análisis visual de bytes no generó resultados (respuesta vacía)."
+            response = self.client.models.generate_content(
+                model=self.vision_model,
+                contents=contents,
+                config=config
+            )
+            
+            if not response.text:
+                return "Error: El análisis visual de bytes no generó resultados."
                 
             return response.text
         except Exception as e:
@@ -173,22 +197,16 @@ class GeminiClient:
     def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
         """
         Generate embeddings for a list of texts.
-        
-        Args:
-            texts: List of text strings to embed
-            
-        Returns:
-            List of embedding vectors
         """
         try:
             embeddings = []
             for text in texts:
-                result = genai.embed_content(
-                    model=GEMINI_EMBEDDING_MODEL,
-                    content=text,
-                    task_type="retrieval_document"
+                result = self.client.models.embed_content(
+                    model=self.embedding_model,
+                    contents=text,
+                    config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
                 )
-                embeddings.append(result['embedding'])
+                embeddings.append(result.embeddings[0].values)
             return embeddings
         except Exception as e:
             print(f"Error generating embeddings: {e}")
@@ -197,20 +215,14 @@ class GeminiClient:
     def generate_query_embedding(self, query: str) -> List[float]:
         """
         Generate embedding for a search query.
-        
-        Args:
-            query: Query text to embed
-            
-        Returns:
-            Embedding vector
         """
         try:
-            result = genai.embed_content(
-                model=GEMINI_EMBEDDING_MODEL,
-                content=query,
-                task_type="retrieval_query"
+            result = self.client.models.embed_content(
+                model=self.embedding_model,
+                contents=query,
+                config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY")
             )
-            return result['embedding']
+            return result.embeddings[0].values
         except Exception as e:
             print(f"Error generating query embedding: {e}")
             raise
