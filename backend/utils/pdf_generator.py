@@ -22,19 +22,9 @@ class PDFGenerator:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-    def generate_dictamen(self, data: Dict[str, Any], image_paths: List[str] = None, image_path: str = None) -> str:
-        """
-        Generate PDF dictamen from analysis data.
-        
-        Args:
-            data: Dictionary containing analysis results
-            image_paths: Optional list of paths to analyzed images
-            image_path: Legacy support for single image path
-            
-        Returns:
-            Path to generated PDF file
-        """
-        # Handle legacy image_path
+    def generate_dictamen(self, data: Dict[str, Any], image_paths: List[str] = None, image_path: str = None, language: str = 'es') -> str:
+        """Generate PDF dictamen. language='en' produces an English report."""
+        en = (language == 'en')
         if image_path and not image_paths:
             image_paths = [image_path]
         elif not image_paths:
@@ -110,34 +100,37 @@ class PDFGenerator:
         )
         
         # Title
-        story.append(Paragraph("Dictamen Técnico de Instalación Eléctrica (Basado en NOM-001-SEDE-2012)", title_style))
+        doc_title = "Technical Report – Electrical Installation (NOM-001-SEDE-2012 / NEC)" if en else "Dictamen Técnico de Instalación Eléctrica (Basado en NOM-001-SEDE-2012)"
+        story.append(Paragraph(doc_title, title_style))
         story.append(Spacer(1, 0.15*inch))
-        
+
         # Metadata
         now = datetime.now()
-        meses_es = {
-            1: 'enero', 2: 'febrero', 3: 'marzo', 4: 'abril',
-            5: 'mayo', 6: 'junio', 7: 'julio', 8: 'agosto',
-            9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'
-        }
-        fecha = f"{now.day} de {meses_es[now.month]} de {now.year}"
-        story.append(Paragraph(f"<b>Fecha del Dictamen:</b> {fecha}", metadata_style))
-        story.append(Paragraph(f"<b>Referencia:</b> Análisis de Imagen(es) de Instalación Eléctrica", metadata_style))
-        
-        normativa_text = """<b>Normativa Aplicable:</b> Norma Oficial Mexicana NOM-001-SEDE-2012, Instalaciones Eléctricas (Utilización). (Se reconoce que la NOM-001-SEDE-2012 se basa en el National Electrical Code, NFPA 70, y las referencias numéricas proporcionadas en las imágenes corresponden a artículos de dicho código, los cuales están integrados en la estructura de la NOM)."""
-        story.append(Paragraph(normativa_text, body_style))
+        if en:
+            fecha = now.strftime('%B %d, %Y')
+            story.append(Paragraph(f"<b>Report Date:</b> {fecha}", metadata_style))
+            story.append(Paragraph("<b>Reference:</b> AI Analysis of Electrical Installation Image(s)", metadata_style))
+            norm_text = "<b>Applicable Standard:</b> NOM-001-SEDE-2012 / National Electrical Code (NFPA 70). Numerical article references correspond to NEC articles integrated into the NOM structure."
+        else:
+            meses_es = {1:'enero',2:'febrero',3:'marzo',4:'abril',5:'mayo',6:'junio',7:'julio',8:'agosto',9:'septiembre',10:'octubre',11:'noviembre',12:'diciembre'}
+            fecha = f"{now.day} de {meses_es[now.month]} de {now.year}"
+            story.append(Paragraph(f"<b>Fecha del Dictamen:</b> {fecha}", metadata_style))
+            story.append(Paragraph("<b>Referencia:</b> Análisis de Imagen(es) de Instalación Eléctrica", metadata_style))
+            norm_text = "<b>Normativa Aplicable:</b> Norma Oficial Mexicana NOM-001-SEDE-2012, Instalaciones Eléctricas (Utilización). (Se reconoce que la NOM-001-SEDE-2012 se basa en el National Electrical Code, NFPA 70)."
+        story.append(Paragraph(norm_text, body_style))
         story.append(Spacer(1, 0.2*inch))
-        
-        # 1. Introducción
-        story.append(Paragraph("1. Introducción", heading1_style))
-        intro_text = """El presente dictamen técnico tiene como objetivo analizar la(s) imagen(es) proporcionada(s) de una instalación eléctrica, con especial atención a la distribución de conductores dentro de un tablero de distribución o centro de carga. Se evaluará el cumplimiento de los principios fundamentales de seguridad, diseño, selección y construcción establecidos en la NOM-001-SEDE-2012, identificando aspectos conformes, no conformes y aquellos que requieren verificación adicional, así como proporcionando recomendaciones para subsanar deficiencias."""
-        story.append(Paragraph(intro_text, body_style))
+
+        # 1. Introduction
+        story.append(Paragraph("1. Introduction" if en else "1. Introducción", heading1_style))
+        intro = ("This technical report analyzes the provided electrical installation image(s), focusing on conductor distribution and safety compliance with NOM-001-SEDE-2012 / NEC standards."
+                 if en else
+                 "El presente dictamen técnico analiza la(s) imagen(es) proporcionada(s) de una instalación eléctrica, evaluando el cumplimiento con la NOM-001-SEDE-2012.")
+        story.append(Paragraph(intro, body_style))
         story.append(Spacer(1, 0.2*inch))
-        
-        # 2. Análisis Detallado
-        story.append(Paragraph("2. Análisis Detallado de la Instalación", heading1_style))
-        intro_analisis = "A continuación, se presenta un análisis de los elementos visibles en la(s) imagen(es), en relación con las referencias normativas señaladas y la NOM-001-SEDE-2012:"
-        story.append(Paragraph(intro_analisis, body_style))
+
+        # 2. Detailed Analysis
+        story.append(Paragraph("2. Detailed Analysis" if en else "2. Análisis Detallado de la Instalación", heading1_style))
+        story.append(Paragraph("The following elements were identified in the image(s):" if en else "A continuación se presenta el análisis de los elementos visibles en la(s) imagen(es):", body_style))
         
         # Insert images (Grid Layout)
         if image_paths:
@@ -177,80 +170,68 @@ class PDFGenerator:
                 story.append(t)
                 story.append(Spacer(1, 0.15*inch))
                 
-        story.append(Spacer(1, 0.15*inch))
-        
         # Get NCs
         non_conformities = data.get('non_conformities', [])
         conformities = data.get('conformities', [])
-        
-        # 2.1 Aspectos que cumplen
-        story.append(Paragraph("2.1. Aspectos que cumplen con la normativa (✓)", heading2_style))
-        
+
+        # 2.1 Conforming aspects
+        h21 = "2.1. Conforming Aspects (✓)" if en else "2.1. Aspectos que cumplen con la normativa (✓)"
+        story.append(Paragraph(h21, heading2_style))
         if conformities:
-            for conf in conformities[:5]:  # Max 5
-                bullet = f"• <b>✓ {conf}</b>"
-                story.append(Paragraph(bullet, body_style))
+            for conf in conformities[:5]:
+                story.append(Paragraph(f"• <b>✓ {conf}</b>", body_style))
                 story.append(Spacer(1, 0.05*inch))
         else:
-            story.append(Paragraph("• No se identificaron aspectos conformes específicos en el análisis visual.", body_style))
-        
+            story.append(Paragraph("• No specific conforming aspects were identified." if en else "• No se identificaron aspectos conformes específicos en el análisis visual.", body_style))
         story.append(Spacer(1, 0.15*inch))
-        
-        # 2.2 Aspectos que NO cumplen
-        story.append(Paragraph("2.2. Aspectos que NO cumplen o presentan riesgos (✗)", heading2_style))
-        
+
+        # 2.2 Non-conforming aspects
+        h22 = "2.2. Non-Conforming Aspects / Risks (✗)" if en else "2.2. Aspectos que NO cumplen o presentan riesgos (✗)"
+        story.append(Paragraph(h22, heading2_style))
         if non_conformities:
+            risk_map_en = {'high': 'Severe. Imminent risk of conductor insulation damage, potentially causing short circuits, ground faults, arcing or fire.', 'medium': 'High. May cause overheating, protection failures and fire risk.', 'low': 'Moderate. May affect safety and efficiency over time.'}
+            risk_map_es = {'high': 'Severo. Riesgo inminente de daño al aislamiento de los conductores por abrasión o corte, lo que podría provocar cortocircuitos, fallas a tierra, arcos eléctricos e incluso incendios.', 'medium': 'Alto. Puede generar sobrecalentamiento, fallas en la protección y riesgo de incendio.', 'low': 'Moderado. Puede afectar la seguridad y eficiencia de la instalación a largo plazo.'}
+            risk_map = risk_map_en if en else risk_map_es
             for nc in non_conformities:
-                desc = nc.get('description', 'Sin descripción')
-                article = nc.get('article', 'Sin referencia')
+                desc = nc.get('description', 'No description' if en else 'Sin descripción')
+                article = nc.get('article', 'No reference' if en else 'Sin referencia')
                 severity = nc.get('severity', 'medium')
-                
-                # Title with X
-                nc_title = f"• <b>✗ {desc}</b>"
-                story.append(Paragraph(nc_title, body_style))
-                
-                # Observación
-                obs_text = f"<b>Observación:</b> {desc}"
-                story.append(Paragraph(obs_text, body_style))
-                
-                # Riesgo
-                risk_map = {
-                    'high': 'Severo. Riesgo inminente de daño al aislamiento de los conductores por abrasión o corte, lo que podría provocar cortocircuitos, fallas a tierra, arcos eléctricos e incluso incendios.',
-                    'medium': 'Alto. Puede generar sobrecalentamiento, fallas en la protección y riesgo de incendio.',
-                    'low': 'Moderado. Puede afectar la seguridad y eficiencia de la instalación a largo plazo.'
-                }
-                risk_text = f"<b>Riesgo:</b> {risk_map.get(severity, risk_map['medium'])}"
-                story.append(Paragraph(risk_text, body_style))
-                
-                # Normativa Aplicable (in red)
-                if article and article != 'Sin referencia':
-                    norm_text = f'<b>Normativa Aplicable:</b> <font color="red">NOM-001-SEDE-2012, Artículo {article}</font>'
-                    story.append(Paragraph(norm_text, body_style))
-                
+                story.append(Paragraph(f"• <b>✗ {desc}</b>", body_style))
+                obs_label = "Observation:" if en else "Observación:"
+                story.append(Paragraph(f"<b>{obs_label}</b> {desc}", body_style))
+                risk_label = "Risk:" if en else "Riesgo:"
+                story.append(Paragraph(f"<b>{risk_label}</b> {risk_map.get(severity, risk_map['medium'])}", body_style))
+                if article and article not in ('Sin referencia', 'No reference'):
+                    norm_label = "Applicable Standard:" if en else "Normativa Aplicable:"
+                    norm_ref = f"NOM-001-SEDE-2012 / NEC, Article {article}" if en else f"NOM-001-SEDE-2012, Artículo {article}"
+                    story.append(Paragraph(f'<b>{norm_label}</b> <font color="red">{norm_ref}</font>', body_style))
                 story.append(Spacer(1, 0.1*inch))
         else:
-            story.append(Paragraph("• No se identificaron no conformidades en el análisis visual.", body_style))
-        
+            story.append(Paragraph("• No non-conformities were detected." if en else "• No se identificaron no conformidades en el análisis visual.", body_style))
         story.append(Spacer(1, 0.2*inch))
-        
-        # 3. Recomendaciones
-        story.append(Paragraph("3. Recomendaciones Específicas de Corrección", heading1_style))
-        
-        recommendations = [
-            ("Protección en Aberturas Metálicas", "Instalar de inmediato pasacables, bujes o anillos aprobados en todas las aberturas metálicas por donde ingresan los conductores al tablero, asegurando que cubran completamente los bordes metálicos."),
-            ("Manejo de Conductores y Disipación de Calor", "Deshacer el agrupamiento excesivo de conductores o, en su defecto, aplicar los factores de ajuste de ampacidad correspondientes según la Tabla 310.15(B)(3)(a) de la NOM-001-SEDE-2012 para asegurar que los conductores no se sobrecalienten."),
-            ("Organización del Cableado", "Reorganizar el cableado dentro del tablero para un tendido más limpio y ordenado, utilizando cinchos o sujetacables de forma no restrictiva para mantener los conductores en su lugar sin apretarlos excesivamente.")
-        ]
-        
+
+        # 3. Recommendations
+        story.append(Paragraph("3. Specific Correction Recommendations" if en else "3. Recomendaciones Específicas de Corrección", heading1_style))
+        if en:
+            recommendations = [
+                ("Conductor Protection at Metal Openings", "Immediately install approved cable grommets or bushings at all metal openings where conductors enter the panel, ensuring full coverage of metal edges."),
+                ("Conductor Bundling & Heat Dissipation", "Reduce excessive conductor bundling or apply the corresponding ampacity adjustment factors per Table 310.15(B)(3)(a) to prevent overheating."),
+                ("Cable Organization", "Reorganize wiring inside the panel for a cleaner layout, using non-restrictive cable ties to secure conductors without excessive compression."),
+            ]
+        else:
+            recommendations = [
+                ("Protección en Aberturas Metálicas", "Instalar de inmediato pasacables, bujes o anillos aprobados en todas las aberturas metálicas por donde ingresan los conductores al tablero."),
+                ("Manejo de Conductores y Disipación de Calor", "Deshacer el agrupamiento excesivo de conductores o aplicar los factores de ajuste de ampacidad correspondientes según la Tabla 310.15(B)(3)(a)."),
+                ("Organización del Cableado", "Reorganizar el cableado dentro del tablero para un tendido más limpio, utilizando cinchos o sujetacables de forma no restrictiva."),
+            ]
         for i, (title, desc) in enumerate(recommendations, 1):
             story.append(Paragraph(f"{i}. <b>{title}:</b>", body_style))
             story.append(Paragraph(f"   {desc}", body_style))
             story.append(Spacer(1, 0.08*inch))
-        
         story.append(Spacer(1, 0.2*inch))
-        
-        # 4. Conclusión
-        story.append(Paragraph("4. Conclusión", heading1_style))
+
+        # 4. Conclusion
+        story.append(Paragraph("4. Conclusion" if en else "4. Conclusión", heading1_style))
         
         classification = data.get('classification', {})
         justification = classification.get('justification', '')
@@ -263,28 +244,25 @@ class PDFGenerator:
         
         story.append(Spacer(1, 0.3*inch))
         
-        # Elaborado por
-        inspector_name = data.get('inspector_name', '[ Tu Nombre ]')
-        story.append(Paragraph(f"<b>Elaborado por:</b> {inspector_name}", metadata_style))
+        inspector_name = data.get('inspector_name', '[ Inspector ]')
+        elaborado = "Prepared by:" if en else "Elaborado por:"
+        story.append(Paragraph(f"<b>{elaborado}</b> {inspector_name}", metadata_style))
         story.append(Spacer(1, 0.15*inch))
-        
-        # Referencias de NOMs
-        story.append(Paragraph("Referencias de NOMs:", body_style))
-        
-        # Extract unique articles
+
+        ref_label = "Standards References:" if en else "Referencias de NOMs:"
+        story.append(Paragraph(ref_label, body_style))
         articles_set: Set[str] = set()
         for nc in non_conformities:
             article = nc.get('article')
-            if article and article != 'Sin referencia':
+            if article and article not in ('Sin referencia', 'No reference'):
                 articles_set.add(article)
-        
-        # Generate references
         if articles_set:
             for article in sorted(articles_set):
-                ref_text = f"• NOM-001-SEDE-2012.pdf (Artículo {article})"
+                ref_text = f"• NOM-001-SEDE-2012 / NEC (Article {article})" if en else f"• NOM-001-SEDE-2012.pdf (Artículo {article})"
                 story.append(Paragraph(ref_text, ParagraphStyle('Ref', parent=body_style, fontName='Courier', fontSize=9)))
         else:
-            story.append(Paragraph("• NOM-001-SEDE-2012.pdf (Referencia general)", ParagraphStyle('Ref', parent=body_style, fontName='Courier', fontSize=9)))
+            ref_text = "• NOM-001-SEDE-2012 / NEC (General Reference)" if en else "• NOM-001-SEDE-2012.pdf (Referencia general)"
+            story.append(Paragraph(ref_text, ParagraphStyle('Ref', parent=body_style, fontName='Courier', fontSize=9)))
         
         # Build PDF
         doc.build(story)

@@ -6,7 +6,7 @@ const API_BASE_URL = window.location.origin;
 
 let selectedImage = null;
 let currentAnalysis = null;
-let currentImageFilename = null;
+let currentImageFilenames = [];  // Array — stores all uploaded image filenames
 let currentLanguage = 'es';
 
 // ---- UI String Dictionaries ----
@@ -240,9 +240,9 @@ async function analyzeInstallation() {
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 
     try {
-        await updateStep(1, '✓ ' + (currentLanguage === 'en' ? 'Image received' : 'Imagen recibida'));
-        await sleep(500);
-        await updateStep(2, t('step2'));
+        await updateStep(1, '✓ ' + (currentLanguage === 'en' ? 'Image received' : 'Imagen recibida'), true);
+        await sleep(300);
+        await updateStep(2, t('step2'), true);  // stays active during API call
 
         const formData = new FormData();
         formData.append('image', selectedImage);
@@ -260,17 +260,18 @@ async function analyzeInstallation() {
             throw new Error(data.error || `Server error (${response.status})`);
         }
 
-        await updateStep(2, t('step2done'));
-        await updateStep(3, t('step3'));
-        await sleep(1000);
+        await updateStep(2, t('step2done'), true);
+        await updateStep(3, t('step3'), true);
+        await sleep(900);
 
-        await updateStep(3, t('step3done'));
-        await updateStep(4, t('step4'));
-        await sleep(500);
-        await updateStep(4, t('step4done'));
+        await updateStep(3, t('step3done'), true);
+        await updateStep(4, t('step4'), true);
+        await sleep(400);
+        await updateStep(4, t('step4done'), true);
 
         currentAnalysis = data.analysis;
-        currentImageFilename = data.image_filename;
+        // Store ALL image filenames returned by server
+        currentImageFilenames = data.image_filenames || (data.image_filename ? [data.image_filename] : []);
 
         displayResults(data.analysis);
 
@@ -398,7 +399,8 @@ async function downloadDictamen() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 analysis: currentAnalysis,
-                image_filename: currentImageFilename,
+                image_filenames: currentImageFilenames,
+                image_filename: currentImageFilenames[0] || null,
                 language: currentLanguage,
                 inspection_data: {
                     folio: 'AUTO-' + Date.now(),
@@ -429,7 +431,8 @@ async function downloadDictamenWord() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 analysis: currentAnalysis,
-                image_filename: currentImageFilename,
+                image_filenames: currentImageFilenames,
+                image_filename: currentImageFilenames[0] || null,
                 language: currentLanguage,
                 inspection_data: {
                     folio: 'AUTO-' + Date.now(),
@@ -454,7 +457,7 @@ async function downloadDictamenWord() {
 function newAnalysis() {
     selectedImage = null;
     currentAnalysis = null;
-    currentImageFilename = null;
+    currentImageFilenames = [];
 
     document.getElementById('results-section').style.display = 'none';
     document.getElementById('image-preview').style.display = 'none';
@@ -466,22 +469,27 @@ function newAnalysis() {
     document.getElementById('step-2').textContent = t('step2');
     document.getElementById('step-3').textContent = t('step3');
     document.getElementById('step-4').textContent = t('step4');
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('step-active', 'step-done'));
 
-    // Reset tabs — first is active
-    document.querySelectorAll('.tab-panel').forEach((p, i) => {
-        p.classList.toggle('active', i === 0);
-    });
-    document.querySelectorAll('.tab').forEach((t, i) => {
-        t.classList.toggle('active', i === 0);
-    });
+    // Reset tabs
+    document.querySelectorAll('.tab-panel').forEach((p, i) => p.classList.toggle('active', i === 0));
+    document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === 0));
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ---- Helpers ----
-async function updateStep(stepNum, text) {
+async function updateStep(stepNum, text, isActive = false) {
     const step = document.getElementById(`step-${stepNum}`);
-    if (step) step.textContent = text;
+    if (!step) return;
+    step.textContent = text;
+    // Remove previous state classes
+    step.classList.remove('step-active', 'step-done');
+    if (isActive && text.startsWith('⏳')) {
+        step.classList.add('step-active');
+    } else if (isActive && (text.startsWith('✓') || text.includes('✓'))) {
+        step.classList.add('step-done');
+    }
 }
 
 function sleep(ms) {

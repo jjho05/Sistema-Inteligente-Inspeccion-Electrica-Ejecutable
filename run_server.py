@@ -223,23 +223,24 @@ def generate_dictamen():
         
         # Resolve image paths
         image_filenames = data.get('image_filenames', [])
-        # Fallback for legacy/single image
         if 'image_filename' in data and not image_filenames:
             image_filenames = [data['image_filename']]
-            
+        language = data.get('language', 'es')
+
         image_paths = []
         import tempfile
         temp_dir = Path(tempfile.gettempdir()) / "electrica_temp"
-        
+
         for fname in image_filenames:
-            path = temp_dir / fname
-            if path.exists():
-                image_paths.append(str(path))
-            
-        # Generate PDF directly
+            if fname:
+                path = temp_dir / fname
+                if path.exists():
+                    image_paths.append(str(path))
+
+        # Generate PDF
         from backend.utils.pdf_generator import PDFGenerator
         pdf_gen = PDFGenerator()
-        pdf_path = pdf_gen.generate_dictamen(dictamen_data, image_paths=image_paths) # Pass list
+        pdf_path = pdf_gen.generate_dictamen(dictamen_data, image_paths=image_paths, language=language)
         
         return jsonify({
             'success': True,
@@ -267,24 +268,24 @@ def generate_dictamen_word():
         
         # Resolve image paths
         image_filenames = data.get('image_filenames', [])
-        # Fallback
         if 'image_filename' in data and not image_filenames:
             image_filenames = [data['image_filename']]
-            
+        language = data.get('language', 'es')
+
         image_paths = []
         import tempfile
         temp_dir = Path(tempfile.gettempdir()) / "electrica_temp"
-        
+
         for fname in image_filenames:
-            path = temp_dir / fname
-            if path.exists():
-                image_paths.append(str(path))
-            
+            if fname:
+                path = temp_dir / fname
+                if path.exists():
+                    image_paths.append(str(path))
+
         # Generate Word document
         from backend.utils.word_generator import WordGenerator
         word_gen = WordGenerator()
-        
-        word_path = word_gen.generate_dictamen(dictamen_data, image_paths=image_paths) # Pass list
+        word_path = word_gen.generate_dictamen(dictamen_data, image_paths=image_paths, language=language)
         
         return jsonify({
             'success': True,

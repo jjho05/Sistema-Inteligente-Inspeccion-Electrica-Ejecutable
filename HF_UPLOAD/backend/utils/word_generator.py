@@ -8,7 +8,7 @@ from docx.shared import Pt, RGBColor, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Set
+from typing import Dict, Any, Set, List
 
 
 class WordGenerator:
@@ -19,19 +19,9 @@ class WordGenerator:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-    def generate_dictamen(self, data: Dict[str, Any], image_paths: List[str] = None, image_path: str = None) -> str:
-        """
-        Generate Word dictamen from analysis data.
-        
-        Args:
-            data: Dictionary containing analysis results
-            image_paths: Optional list of paths to analyzed images
-            image_path: Legacy support for single image path
-            
-        Returns:
-            Path to generated Word file
-        """
-        # Handle legacy image_path
+    def generate_dictamen(self, data: Dict[str, Any], image_paths: List[str] = None, image_path: str = None, language: str = 'es') -> str:
+        """Generate Word dictamen. language='en' produces an English report."""
+        en = (language == 'en')
         if image_path and not image_paths:
             image_paths = [image_path]
         elif not image_paths:
@@ -54,60 +44,51 @@ class WordGenerator:
             section.right_margin = Inches(0.75)
         
         # Title
+        doc_title = "Technical Report – Electrical Installation (NOM-001-SEDE-2012 / NEC)" if en else "Dictamen Técnico de Instalación Eléctrica (Basado en NOM-001-SEDE-2012)"
         title = doc.add_paragraph()
-        title_run = title.add_run("Dictamen Técnico de Instalación Eléctrica (Basado en NOM-001-SEDE-2012)")
+        title_run = title.add_run(doc_title)
         title_run.font.size = Pt(16)
         title_run.font.bold = True
-        title_run.font.color.rgb = RGBColor(44, 82, 130)  # #2C5282
+        title_run.font.color.rgb = RGBColor(44, 82, 130)
         title.alignment = WD_ALIGN_PARAGRAPH.LEFT
         doc.add_paragraph()
-        
+
         # Metadata
         now = datetime.now()
-        meses_es = {
-            1: 'enero', 2: 'febrero', 3: 'marzo', 4: 'abril',
-            5: 'mayo', 6: 'junio', 7: 'julio', 8: 'agosto',
-            9: 'septiembre', 10: 'octubre', 11: 'noviembre', 12: 'diciembre'
-        }
-        fecha = f"{now.day} de {meses_es[now.month]} de {now.year}"
-        
-        p = doc.add_paragraph()
-        p.add_run("Fecha del Dictamen: ").bold = True
-        p.add_run(fecha)
-        
-        p = doc.add_paragraph()
-        p.add_run("Referencia: ").bold = True
-        p.add_run("Análisis de Imagen(es) de Instalación Eléctrica")
-        
-        p = doc.add_paragraph()
-        p.add_run("Normativa Aplicable: ").bold = True
-        p.add_run("Norma Oficial Mexicana NOM-001-SEDE-2012, Instalaciones Eléctricas (Utilización). (Se reconoce que la NOM-001-SEDE-2012 se basa en el National Electrical Code, NFPA 70, y las referencias numéricas proporcionadas en las imágenes corresponden a artículos de dicho código, los cuales están integrados en la estructura de la NOM).")
-        p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        
+        if en:
+            fecha = now.strftime('%B %d, %Y')
+            p = doc.add_paragraph(); p.add_run("Report Date: ").bold = True; p.add_run(fecha)
+            p = doc.add_paragraph(); p.add_run("Reference: ").bold = True; p.add_run("AI Analysis of Electrical Installation Image(s)")
+            p = doc.add_paragraph(); p.add_run("Applicable Standard: ").bold = True
+            p.add_run("NOM-001-SEDE-2012 / National Electrical Code (NFPA 70). Numerical article references correspond to NEC articles integrated into the NOM structure.")
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        else:
+            meses_es = {1:'enero',2:'febrero',3:'marzo',4:'abril',5:'mayo',6:'junio',7:'julio',8:'agosto',9:'septiembre',10:'octubre',11:'noviembre',12:'diciembre'}
+            fecha = f"{now.day} de {meses_es[now.month]} de {now.year}"
+            p = doc.add_paragraph(); p.add_run("Fecha del Dictamen: ").bold = True; p.add_run(fecha)
+            p = doc.add_paragraph(); p.add_run("Referencia: ").bold = True; p.add_run("Análisis de Imagen(es) de Instalación Eléctrica")
+            p = doc.add_paragraph(); p.add_run("Normativa Aplicable: ").bold = True
+            p.add_run("Norma Oficial Mexicana NOM-001-SEDE-2012, Instalaciones Eléctricas (Utilización). (Se reconoce que la NOM-001-SEDE-2012 se basa en el National Electrical Code, NFPA 70).")
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         doc.add_paragraph()
-        
-        # 1. Introducción
+
+        # 1. Introduction
         h1 = doc.add_paragraph()
-        h1_run = h1.add_run("1. Introducción")
-        h1_run.font.size = Pt(13)
-        h1_run.font.bold = True
-        h1_run.font.color.rgb = RGBColor(44, 82, 130)
-        
+        h1_run = h1.add_run("1. Introduction" if en else "1. Introducción")
+        h1_run.font.size = Pt(13); h1_run.font.bold = True; h1_run.font.color.rgb = RGBColor(44, 82, 130)
         intro = doc.add_paragraph()
-        intro.add_run("El presente dictamen técnico tiene como objetivo analizar la(s) imagen(es) proporcionada(s) de una instalación eléctrica, con especial atención a la distribución de conductores dentro de un tablero de distribución o centro de carga. Se evaluará el cumplimiento de los principios fundamentales de seguridad, diseño, selección y construcción establecidos en la NOM-001-SEDE-2012, identificando aspectos conformes, no conformes y aquellos que requieren verificación adicional, así como proporcionando recomendaciones para subsanar deficiencias.")
+        intro.add_run("This technical report analyzes the provided electrical installation image(s), focusing on conductor distribution and safety compliance with NOM-001-SEDE-2012 / NEC standards."
+                      if en else
+                      "El presente dictamen técnico analiza la(s) imagen(es) proporcionada(s) de una instalación eléctrica, evaluando el cumplimiento con la NOM-001-SEDE-2012.")
         intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        
         doc.add_paragraph()
-        
-        # 2. Análisis Detallado
+
+        # 2. Detailed Analysis
         h1 = doc.add_paragraph()
-        h1_run = h1.add_run("2. Análisis Detallado de la Instalación")
-        h1_run.font.size = Pt(13)
-        h1_run.font.bold = True
-        h1_run.font.color.rgb = RGBColor(44, 82, 130)
-        
+        h1_run = h1.add_run("2. Detailed Analysis" if en else "2. Análisis Detallado de la Instalación")
+        h1_run.font.size = Pt(13); h1_run.font.bold = True; h1_run.font.color.rgb = RGBColor(44, 82, 130)
         p = doc.add_paragraph()
-        p.add_run("A continuación, se presenta un análisis de los elementos visibles en la(s) imagen(es), en relación con las referencias normativas señaladas y la NOM-001-SEDE-2012:")
+        p.add_run("The following elements were identified in the image(s):" if en else "A continuación, se presenta un análisis de los elementos visibles en la(s) imagen(es):")
         p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         
         # Insert images (Sequential)
@@ -130,103 +111,73 @@ class WordGenerator:
                     except Exception as e:
                         print(f"Error inserting image into Word: {e}")
         
-        doc.add_paragraph()
-        
         # Get data
         non_conformities = data.get('non_conformities', [])
         conformities = data.get('conformities', [])
-        
-        # 2.1 Aspectos que cumplen
+
+        # 2.1 Conforming aspects
         h2 = doc.add_paragraph()
-        h2_run = h2.add_run("2.1. Aspectos que cumplen con la normativa (✓)")
-        h2_run.font.size = Pt(11)
-        h2_run.font.bold = True
-        
+        h2_run = h2.add_run("2.1. Conforming Aspects (✓)" if en else "2.1. Aspectos que cumplen con la normativa (✓)")
+        h2_run.font.size = Pt(11); h2_run.font.bold = True
         if conformities:
             for conf in conformities[:5]:
                 p = doc.add_paragraph(style='List Bullet')
-                run = p.add_run(f"✓ {conf}")
-                run.bold = True
+                p.add_run(f"✓ {conf}").bold = True
         else:
-            doc.add_paragraph("• No se identificaron aspectos conformes específicos en el análisis visual.")
-        
+            doc.add_paragraph("• No specific conforming aspects were identified." if en else "• No se identificaron aspectos conformes específicos en el análisis visual.")
         doc.add_paragraph()
-        
-        # 2.2 Aspectos que NO cumplen
+
+        # 2.2 Non-conforming aspects
         h2 = doc.add_paragraph()
-        h2_run = h2.add_run("2.2. Aspectos que NO cumplen o presentan riesgos (✗)")
-        h2_run.font.size = Pt(11)
-        h2_run.font.bold = True
-        
+        h2_run = h2.add_run("2.2. Non-Conforming Aspects / Risks (✗)" if en else "2.2. Aspectos que NO cumplen o presentan riesgos (✗)")
+        h2_run.font.size = Pt(11); h2_run.font.bold = True
         if non_conformities:
+            risk_map_en = {'high': 'Severe. Imminent risk of conductor insulation damage.', 'medium': 'High. May cause overheating and fire risk.', 'low': 'Moderate. May affect safety over time.'}
+            risk_map_es = {'high': 'Severo. Riesgo inminente de daño al aislamiento.', 'medium': 'Alto. Puede generar sobrecalentamiento y riesgo de incendio.', 'low': 'Moderado. Puede afectar la seguridad a largo plazo.'}
+            risk_map = risk_map_en if en else risk_map_es
             for nc in non_conformities:
-                desc = nc.get('description', 'Sin descripción')
-                article = nc.get('article', 'Sin referencia')
+                desc = nc.get('description', 'No description' if en else 'Sin descripción')
+                article = nc.get('article', 'No reference' if en else 'Sin referencia')
                 severity = nc.get('severity', 'medium')
-                
-                # Title
-                p = doc.add_paragraph(style='List Bullet')
-                run = p.add_run(f"✗ {desc}")
-                run.bold = True
-                
-                # Observación
-                p = doc.add_paragraph()
-                p.add_run("Observación: ").bold = True
-                p.add_run(desc)
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                
-                # Riesgo
-                risk_map = {
-                    'high': 'Severo. Riesgo inminente de daño al aislamiento de los conductores por abrasión o corte, lo que podría provocar cortocircuitos, fallas a tierra, arcos eléctricos e incluso incendios.',
-                    'medium': 'Alto. Puede generar sobrecalentamiento, fallas en la protección y riesgo de incendio.',
-                    'low': 'Moderado. Puede afectar la seguridad y eficiencia de la instalación a largo plazo.'
-                }
-                p = doc.add_paragraph()
-                p.add_run("Riesgo: ").bold = True
-                p.add_run(risk_map.get(severity, risk_map['medium']))
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                
-                # Normativa Aplicable
-                if article and article != 'Sin referencia':
-                    p = doc.add_paragraph()
-                    p.add_run("Normativa Aplicable: ").bold = True
-                    run = p.add_run(f"NOM-001-SEDE-2012, Artículo {article}")
-                    run.font.color.rgb = RGBColor(255, 0, 0)  # Red
-                    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                
+                p = doc.add_paragraph(style='List Bullet'); p.add_run(f"✗ {desc}").bold = True
+                obs_lbl = "Observation: " if en else "Observación: "
+                p = doc.add_paragraph(); p.add_run(obs_lbl).bold = True; p.add_run(desc); p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                risk_lbl = "Risk: " if en else "Riesgo: "
+                p = doc.add_paragraph(); p.add_run(risk_lbl).bold = True; p.add_run(risk_map.get(severity, risk_map['medium'])); p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                if article and article not in ('Sin referencia', 'No reference'):
+                    norm_lbl = "Applicable Standard: " if en else "Normativa Aplicable: "
+                    norm_ref = f"NOM-001-SEDE-2012 / NEC, Article {article}" if en else f"NOM-001-SEDE-2012, Artículo {article}"
+                    p = doc.add_paragraph(); p.add_run(norm_lbl).bold = True
+                    run = p.add_run(norm_ref); run.font.color.rgb = RGBColor(255, 0, 0); p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
                 doc.add_paragraph()
         else:
-            doc.add_paragraph("• No se identificaron no conformidades en el análisis visual.")
-        
+            doc.add_paragraph("• No non-conformities were detected." if en else "• No se identificaron no conformidades en el análisis visual.")
         doc.add_paragraph()
-        
-        # 3. Recomendaciones
+
+        # 3. Recommendations
         h1 = doc.add_paragraph()
-        h1_run = h1.add_run("3. Recomendaciones Específicas de Corrección")
-        h1_run.font.size = Pt(13)
-        h1_run.font.bold = True
-        h1_run.font.color.rgb = RGBColor(44, 82, 130)
-        
-        recommendations = [
-            ("Protección en Aberturas Metálicas", "Instalar de inmediato pasacables, bujes o anillos aprobados en todas las aberturas metálicas por donde ingresan los conductores al tablero, asegurando que cubran completamente los bordes metálicos."),
-            ("Manejo de Conductores y Disipación de Calor", "Deshacer el agrupamiento excesivo de conductores o, en su defecto, aplicar los factores de ajuste de ampacidad correspondientes según la Tabla 310.15(B)(3)(a) de la NOM-001-SEDE-2012 para asegurar que los conductores no se sobrecalienten."),
-            ("Organización del Cableado", "Reorganizar el cableado dentro del tablero para un tendido más limpio y ordenado, utilizando cinchos o sujetacables de forma no restrictiva para mantener los conductores en su lugar sin apretarlos excesivamente.")
-        ]
-        
+        h1_run = h1.add_run("3. Specific Correction Recommendations" if en else "3. Recomendaciones Específicas de Corrección")
+        h1_run.font.size = Pt(13); h1_run.font.bold = True; h1_run.font.color.rgb = RGBColor(44, 82, 130)
+        if en:
+            recommendations = [
+                ("Conductor Protection at Metal Openings", "Immediately install approved cable grommets or bushings at all metal openings."),
+                ("Conductor Bundling & Heat Dissipation", "Reduce bundling or apply ampacity adjustment factors per Table 310.15(B)(3)(a)."),
+                ("Cable Organization", "Reorganize wiring for a cleaner layout using non-restrictive cable ties."),
+            ]
+        else:
+            recommendations = [
+                ("Protección en Aberturas Metálicas", "Instalar de inmediato pasacables, bujes o anillos aprobados en todas las aberturas metálicas."),
+                ("Manejo de Conductores y Disipación de Calor", "Deshacer el agrupamiento excesivo o aplicar factores de ajuste de ampacidad según Tabla 310.15(B)(3)(a)."),
+                ("Organización del Cableado", "Reorganizar el cableado dentro del tablero usando cinchos o sujetacables de forma no restrictiva."),
+            ]
         for i, (title, desc) in enumerate(recommendations, 1):
-            p = doc.add_paragraph()
-            p.add_run(f"{i}. {title}: ").bold = True
-            p.add_run(desc)
-            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-        
+            p = doc.add_paragraph(); p.add_run(f"{i}. {title}: ").bold = True; p.add_run(desc); p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         doc.add_paragraph()
-        
-        # 4. Conclusión
+
+        # 4. Conclusion
         h1 = doc.add_paragraph()
-        h1_run = h1.add_run("4. Conclusión")
-        h1_run.font.size = Pt(13)
-        h1_run.font.bold = True
-        h1_run.font.color.rgb = RGBColor(44, 82, 130)
+        h1_run = h1.add_run("4. Conclusion" if en else "4. Conclusión")
+        h1_run.font.size = Pt(13); h1_run.font.bold = True; h1_run.font.color.rgb = RGBColor(44, 82, 130)
         
         classification = data.get('classification', {})
         justification = classification.get('justification', '')
@@ -244,37 +195,28 @@ class WordGenerator:
         doc.add_paragraph()
         doc.add_paragraph()
         
-        # Elaborado por
-        inspector_name = data.get('inspector_name', '[ Tu Nombre ]')
+        inspector_name = data.get('inspector_name', '[ Inspector ]')
         p = doc.add_paragraph()
-        p.add_run("Elaborado por: ").bold = True
+        p.add_run("Prepared by: " if en else "Elaborado por: ").bold = True
         p.add_run(inspector_name)
-        
         doc.add_paragraph()
-        
-        # Referencias de NOMs
+
         p = doc.add_paragraph()
-        p.add_run("Referencias de NOMs:")
-        
-        # Extract unique articles
+        p.add_run("Standards References:" if en else "Referencias de NOMs:")
         articles_set: Set[str] = set()
         for nc in non_conformities:
             article = nc.get('article')
-            if article and article != 'Sin referencia':
+            if article and article not in ('Sin referencia', 'No reference'):
                 articles_set.add(article)
-        
-        # Generate references
         if articles_set:
             for article in sorted(articles_set):
                 p = doc.add_paragraph(style='List Bullet')
-                run = p.add_run(f"NOM-001-SEDE-2012.pdf (Artículo {article})")
-                run.font.name = 'Courier New'
-                run.font.size = Pt(9)
+                run = p.add_run(f"NOM-001-SEDE-2012 / NEC (Article {article})" if en else f"NOM-001-SEDE-2012.pdf (Artículo {article})")
+                run.font.name = 'Courier New'; run.font.size = Pt(9)
         else:
             p = doc.add_paragraph(style='List Bullet')
-            run = p.add_run("NOM-001-SEDE-2012.pdf (Referencia general)")
-            run.font.name = 'Courier New'
-            run.font.size = Pt(9)
+            run = p.add_run("NOM-001-SEDE-2012 / NEC (General Reference)" if en else "NOM-001-SEDE-2012.pdf (Referencia general)")
+            run.font.name = 'Courier New'; run.font.size = Pt(9)
         
         # Save document
         doc.save(str(filepath))

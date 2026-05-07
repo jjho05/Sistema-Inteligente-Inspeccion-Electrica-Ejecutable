@@ -352,6 +352,24 @@ input[type="text"]#inspector-name:focus {
     transition: var(--transition);
 }
 
+.step.step-active {
+    background: hsla(var(--hue-primary), 91%, 60%, 0.12);
+    border-color: hsla(var(--hue-primary), 91%, 60%, 0.4);
+    color: var(--primary-color);
+    animation: stepPulse 1.2s ease-in-out infinite;
+}
+
+.step.step-done {
+    background: hsla(158, 64%, 52%, 0.1);
+    border-color: hsla(158, 64%, 52%, 0.4);
+    color: var(--success-color);
+}
+
+@keyframes stepPulse {
+    0%, 100% { box-shadow: 0 0 0 0 hsla(var(--hue-primary), 91%, 60%, 0); }
+    50%       { box-shadow: 0 0 0 4px hsla(var(--hue-primary), 91%, 60%, 0.15); }
+}
+
 /* ---- Results ---- */
 .results-section {
     margin-top: 30px;
