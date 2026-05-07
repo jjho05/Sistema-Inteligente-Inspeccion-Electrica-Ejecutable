@@ -102,8 +102,9 @@ def get_installation_types():
 def analyze_installation():
     """Analyze installation images (multiple)."""
     try:
-        # Get installation type
+        # Get installation type and report language
         installation_type = request.form.get('installation_type', 'tablero_distribucion')
+        language = request.form.get('language', 'es')
         
         # Collect images from files and URLs
         images_to_process = []
@@ -182,8 +183,9 @@ def analyze_installation():
         try:
             # We pass the LIST of paths to the agent
             analysis = integrator.generate_complete_analysis(
-                saved_paths,  # Passing list now
-                installation_type
+                saved_paths,
+                installation_type,
+                language=language
             )
         except Exception as analysis_err:
             print(f"Analysis internal error: {analysis_err}")

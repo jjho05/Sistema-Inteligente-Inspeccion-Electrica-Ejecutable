@@ -320,27 +320,43 @@ def get_prompt_template(installation_type: str) -> str:
     return PROMPT_TEMPLATES.get(template_name, PROMPT_TEMPLATES["tablero_template"])
 
 
-def build_contextualized_prompt(installation_type: str, additional_context: str = "") -> str:
+def build_contextualized_prompt(installation_type: str, additional_context: str = "",
+                               language: str = 'es') -> str:
     """
     Build a contextualized prompt with installation-specific information.
-    
-    Args:
-        installation_type: Type ID
-        additional_context: Additional context to include
-        
-    Returns:
-        Complete prompt with context
+    Injects language instruction and mandatory HUMAN REVIEW section.
     """
     base_prompt = get_prompt_template(installation_type)
-    
+
     if additional_context:
         base_prompt += f"\n\nCONTEXTO ADICIONAL:\n{additional_context}\n"
-    
+
     # Add checklist
     checklist = get_checklist(installation_type)
     if checklist:
         base_prompt += "\n\nCHECKLIST DE VERIFICACIÓN:\n"
         for i, item in enumerate(checklist, 1):
             base_prompt += f"{i}. {item}\n"
-    
+
+    # ---- Mandatory Human Review Section ----
+    base_prompt += """
+
+## REQUIERE REVISIÓN HUMANA
+Si en la imagen existe alguna zona OSCURA, BORROSA, OBSTRUIDA o IMPOSIBLE DE EVALUAR con certeza visual, descríbela brevemente aquí.
+Si no existe ninguna limitación visual, escribe exactamente: NINGUNA
+
+"""
+
+    # ---- Bilingual instruction ----
+    if language == 'en':
+        base_prompt += """
+IMPORTANT LANGUAGE INSTRUCTION:
+You MUST write your ENTIRE response — all sections, descriptions, labels, conformities, non-conformities, observations, classifications, and the HUMAN REVIEW section — in ENGLISH.
+Do NOT use Spanish for any part of the response. Use precise technical English appropriate for electrical inspection reports.
+Replace any Spanish classification terms with their English equivalents:
+- CONFORME → COMPLIANT
+- NO CONFORME → NON-COMPLIANT
+- CONDICIONALMENTE CONFORME → CONDITIONALLY COMPLIANT
+"""
+
     return base_prompt

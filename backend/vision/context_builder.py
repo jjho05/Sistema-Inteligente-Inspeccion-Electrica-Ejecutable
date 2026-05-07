@@ -15,24 +15,16 @@ class ContextBuilder:
         """Initialize context builder."""
         pass
     
-    def build_context(self, installation_type: str, 
-                     additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def build_context(self, installation_type: str,
+                     additional_info: Optional[Dict[str, Any]] = None,
+                     language: str = 'es') -> Dict[str, Any]:
         """
         Build complete context for vision analysis.
-        
-        Args:
-            installation_type: Type ID (e.g., 'tablero_distribucion')
-            additional_info: Optional additional information
-            
-        Returns:
-            Context dictionary with prompt and metadata
         """
-        # Get installation type info
         type_info = get_installation_type(installation_type)
         if not type_info:
             raise ValueError(f"Unknown installation type: {installation_type}")
-        
-        # Build additional context string
+
         additional_context = ""
         if additional_info:
             if 'location' in additional_info:
@@ -41,11 +33,9 @@ class ContextBuilder:
                 additional_context += f"Voltaje: {additional_info['voltage']}\n"
             if 'notes' in additional_info:
                 additional_context += f"Notas: {additional_info['notes']}\n"
-        
-        # Build contextualized prompt
-        prompt = build_contextualized_prompt(installation_type, additional_context)
-        
-        # Return complete context
+
+        prompt = build_contextualized_prompt(installation_type, additional_context, language=language)
+
         return {
             'installation_type': installation_type,
             'installation_name': type_info['nombre'],
@@ -75,17 +65,9 @@ class ContextBuilder:
         return instructions
 
 
-def create_vision_context(installation_type: str, 
-                         additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """
-    Convenience function to create vision context.
-    
-    Args:
-        installation_type: Type ID
-        additional_info: Optional additional information
-        
-    Returns:
-        Context dictionary
-    """
+def create_vision_context(installation_type: str,
+                         additional_info: Optional[Dict[str, Any]] = None,
+                         language: str = 'es') -> Dict[str, Any]:
+    """Convenience function: build vision context including a bilingual prompt."""
     builder = ContextBuilder()
-    return builder.build_context(installation_type, additional_info)
+    return builder.build_context(installation_type, additional_info, language=language)

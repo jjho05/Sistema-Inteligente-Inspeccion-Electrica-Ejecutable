@@ -19,54 +19,39 @@ class VisionAgent:
         self.client = get_gemini_client()
     
     def analyze_image(self, image_paths: List[str], installation_type: str,
-                     additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                     additional_info: Optional[Dict[str, Any]] = None,
+                     language: str = 'es') -> Dict[str, Any]:
         """
         Analyze electrical installation images (multiple).
-        
-        Args:
-            image_paths: List of paths to image files
-            installation_type: Type of installation (e.g., 'tablero_distribucion')
-            additional_info: Optional additional context
-            
-        Returns:
-            Analysis results with detected elements and non-conformities
         """
-        # Backward compatibility for single string
         if isinstance(image_paths, str):
             image_paths = [image_paths]
-            
-        print(f"Analyzing {len(image_paths)} images")
-        print(f"Installation type: {installation_type}")
-        
-        # Build context
-        context = create_vision_context(installation_type, additional_info)
+
+        print(f"Analyzing {len(image_paths)} images | type: {installation_type} | lang: {language}")
+
+        # Build context (pass language for bilingual prompt injection)
+        context = create_vision_context(installation_type, additional_info, language=language)
         prompt = context['prompt']
-        
-        # Analyze images with Gemini Vision (Multimodal)
+
         print("Sending to Gemini Vision...")
-        # We need to update gemini client to accept list of images
         response = self.client.analyze_images(image_paths, prompt)
-        
-        # DEBUG: Print raw response
+
         print("\n" + "="*60)
         print("GEMINI VISION RAW RESPONSE:")
         print("="*60)
-        print(response)  # Full response
+        print(response)
         print("="*60 + "\n")
-        
-        # Parse response
+
         print("Parsing response...")
         parsed_results = parse_vision_response(response)
-        
-        # Add context to results
+
         parsed_results['context'] = {
             'installation_type': installation_type,
             'installation_name': context['installation_name'],
             'applicable_norms': context['applicable_norms']
         }
-        
-        print(f"✓ Analysis complete: {parsed_results['summary']}")
-        
+
+        print(f"\u2713 Analysis complete: {parsed_results['summary']}")
         return parsed_results
     
     def analyze_image_bytes(self, image_bytes: bytes, installation_type: str,

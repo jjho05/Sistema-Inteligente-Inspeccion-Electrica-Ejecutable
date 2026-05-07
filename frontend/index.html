@@ -1,31 +1,38 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" id="html-root">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sistema de Inspección Eléctrica</title>
+    <meta name="description" content="Sistema inteligente de inspección eléctrica con análisis por IA conforme a NOM-001-SEDE-2012">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 
 <body>
     <div class="container">
         <header>
-            <h1>⚡ Sistema de Inspección Eléctrica</h1>
-            <p>Análisis automatizado conforme a NOM-001-SEDE-2012</p>
+            <!-- Language Toggle -->
+            <div class="lang-toggle">
+                <button id="lang-es" class="lang-btn active" onclick="setLanguage('es')">🇲🇽 ES</button>
+                <button id="lang-en" class="lang-btn" onclick="setLanguage('en')">🇺🇸 EN</button>
+            </div>
+
+            <h1 id="app-title">⚡ Sistema de Inspección Eléctrica</h1>
+            <p id="app-subtitle">Análisis automatizado con IA · Normativa NOM-001-SEDE-2012</p>
         </header>
 
         <main>
             <div class="upload-section">
-                <h2>1. Normativa a Evaluar</h2>
-                <div class="input-selector" style="margin-bottom: 20px;">
+                <h2 id="label-norm">1. Normativa a Evaluar</h2>
+                <div class="input-selector" style="margin-bottom: 0;">
                     <select id="norm-selector" class="type-selector">
                         <option value="nom" selected>🇲🇽 Norma Oficial Mexicana (NOM-001-SEDE-2012)</option>
                         <option value="nec">🇺🇸 National Electrical Code (NEC - USA)</option>
                     </select>
                 </div>
 
-                <h2>2. Selecciona el tipo de instalación</h2>
+                <h2 id="label-type">2. Selecciona el tipo de instalación</h2>
                 <select id="installation-type" class="type-selector">
                     <option value="desconocido">❓ Desconocido / Otro</option>
                     <option value="tablero_distribucion">📊 Tablero de Distribución</option>
@@ -36,18 +43,17 @@
                     <option value="industrial">🏭 Instalación Industrial</option>
                 </select>
 
-                <h2>3. Nombre del Inspector</h2>
+                <h2 id="label-inspector">3. Nombre del Inspector</h2>
                 <div class="input-selector">
-                    <input type="text" id="inspector-name" placeholder="Ingresa tu nombre completo"
-                        style="width: 100%; padding: 12px; border: 2px solid rgba(255,255,255,0.1); border-radius: 8px; background: rgba(255,255,255,0.05); color: white; font-size: 14px;">
+                    <input type="text" id="inspector-name" placeholder="Ingresa tu nombre completo">
                 </div>
 
-                <h2>4. Carga la imagen de la instalación</h2>
+                <h2 id="label-image">4. Carga la imagen de la instalación</h2>
                 <div class="upload-area" id="upload-area">
                     <input type="file" id="image-input" accept="image/*" hidden>
                     <div class="upload-placeholder">
-                        <p>📸 Arrastra una imagen aquí o haz clic para seleccionar</p>
-                        <button class="btn-primary" onclick="document.getElementById('image-input').click()">
+                        <p id="upload-hint">📸 Arrastra una imagen aquí o haz clic para seleccionar</p>
+                        <button class="btn-primary" onclick="document.getElementById('image-input').click()" id="select-btn">
                             Seleccionar Imagen
                         </button>
                     </div>
@@ -57,16 +63,18 @@
                 </div>
 
                 <button id="analyze-btn" class="btn-primary btn-large" disabled>
-                    Analizar Instalación
+                    ⚡ Analizar Instalación
                 </button>
             </div>
 
+            <!-- Results Section -->
             <div class="results-section" id="results-section" style="display: none;">
-                <h2>Resultados del Análisis</h2>
+                <h2 id="label-results">Resultados del Análisis</h2>
 
+                <!-- Loading -->
                 <div id="loading" class="loading" style="display: none;">
                     <div class="spinner"></div>
-                    <p>Analizando instalación...</p>
+                    <p id="loading-text">Analizando instalación...</p>
                     <div class="progress-steps">
                         <div class="step" id="step-1">✓ Imagen recibida</div>
                         <div class="step" id="step-2">⏳ Analizando elementos visuales...</div>
@@ -75,26 +83,37 @@
                     </div>
                 </div>
 
+                <!-- Analysis Results -->
                 <div id="analysis-results" class="analysis-results" style="display: none;">
+
+                    <!-- Human Review Alert -->
+                    <div id="human-review-container">
+                        <h3>⚠️ <span id="human-review-title">REQUIERE REVISIÓN HUMANA</span></h3>
+                        <p id="human-review-text"></p>
+                    </div>
+
+                    <!-- Classification -->
                     <div class="classification">
-                        <h3>Clasificación</h3>
+                        <h3 id="label-classification">Clasificación</h3>
                         <div id="classification-status" class="status-badge"></div>
                         <p id="classification-text"></p>
                     </div>
 
+                    <!-- Summary -->
                     <div class="summary">
-                        <h3>Resumen</h3>
+                        <h3 id="label-summary">Resumen</h3>
                         <div id="summary-content"></div>
                     </div>
 
+                    <!-- Tabs -->
                     <div class="details">
-                        <h3>Detalles</h3>
+                        <h3 id="label-details">Detalles</h3>
                         <div class="tabs">
-                            <button class="tab active" onclick="showTab('conformities')">Conformidades</button>
-                            <button class="tab" onclick="showTab('non-conformities')">No Conformidades</button>
-                            <button class="tab" onclick="showTab('observations')">Observaciones</button>
-                            <button class="tab" onclick="showTab('actions')">Acciones Sugeridas</button>
-                            <button class="tab" onclick="showTab('additional')">Observaciones Adicionales</button>
+                            <button class="tab active" id="tab-btn-conformities" onclick="showTab('conformities', this)">Conformidades</button>
+                            <button class="tab" id="tab-btn-non-conformities" onclick="showTab('non-conformities', this)">No Conformidades</button>
+                            <button class="tab" id="tab-btn-observations" onclick="showTab('observations', this)">Observaciones</button>
+                            <button class="tab" id="tab-btn-actions" onclick="showTab('actions', this)">Acciones Sugeridas</button>
+                            <button class="tab" id="tab-btn-additional" onclick="showTab('additional', this)">Obs. Adicionales</button>
                         </div>
                         <div id="tab-content">
                             <div id="conformities-tab" class="tab-panel active"></div>
@@ -105,14 +124,15 @@
                         </div>
                     </div>
 
+                    <!-- Action Buttons -->
                     <div class="actions">
-                        <button class="btn-primary" onclick="downloadDictamen()">
+                        <button class="btn-primary" id="btn-pdf" onclick="downloadDictamen()">
                             📄 Descargar Dictamen (PDF)
                         </button>
-                        <button class="btn-primary" onclick="downloadDictamenWord()">
+                        <button class="btn-primary" id="btn-word" onclick="downloadDictamenWord()">
                             📝 Descargar Dictamen (Word)
                         </button>
-                        <button class="btn-secondary" onclick="newAnalysis()">
+                        <button class="btn-secondary" id="btn-new" onclick="newAnalysis()">
                             🔄 Nuevo Análisis
                         </button>
                     </div>
@@ -122,7 +142,7 @@
 
         <footer>
             <p>TecNM – Instituto Tecnológico de Cd. Madero</p>
-            <p>Sistema Multi-Agente de IA para Inspección Eléctrica</p>
+            <p id="footer-sub">Sistema Multi-Agente de IA para Inspección Eléctrica</p>
         </footer>
     </div>
 
