@@ -1,13 +1,167 @@
-// Main application JavaScript
+// =====================================================
+// Sistema de Inspección Eléctrica — app.js v2.0
+// =====================================================
 
-// API Configuration
-const API_BASE_URL = window.location.origin; // Uses current origin (http://localhost:8080)
+const API_BASE_URL = window.location.origin;
 
 let selectedImage = null;
 let currentAnalysis = null;
 let currentImageFilename = null;
+let currentLanguage = 'es';
 
-// Initialize app
+// ---- UI String Dictionaries ----
+const UI_STRINGS = {
+    es: {
+        appTitle: '⚡ Sistema de Inspección Eléctrica',
+        appSubtitle: 'Análisis automatizado con IA · Normativa NOM-001-SEDE-2012',
+        labelNorm: '1. Normativa a Evaluar',
+        labelType: '2. Selecciona el tipo de instalación',
+        labelInspector: '3. Nombre del Inspector',
+        labelImage: '4. Carga la imagen de la instalación',
+        labelResults: 'Resultados del Análisis',
+        labelClassification: 'Clasificación',
+        labelSummary: 'Resumen',
+        labelDetails: 'Detalles',
+        uploadHint: '📸 Arrastra una imagen aquí o haz clic para seleccionar',
+        selectBtn: 'Seleccionar Imagen',
+        analyzeBtn: '⚡ Analizar Instalación',
+        loadingText: 'Analizando instalación...',
+        step1: '✓ Imagen recibida',
+        step2: '⏳ Analizando elementos visuales...',
+        step3: '⏳ Consultando normativa...',
+        step4: '⏳ Generando dictamen...',
+        step2done: '✓ Análisis visual completado',
+        step3done: '✓ Verificación normativa completada',
+        step4done: '✓ Dictamen generado',
+        humanReviewTitle: 'REQUIERE REVISIÓN HUMANA',
+        tabConformities: 'Conformidades',
+        tabNonConformities: 'No Conformidades',
+        tabObservations: 'Observaciones',
+        tabActions: 'Acciones Sugeridas',
+        tabAdditional: 'Obs. Adicionales',
+        btnPdf: '📄 Descargar Dictamen (PDF)',
+        btnWord: '📝 Descargar Dictamen (Word)',
+        btnNew: '🔄 Nuevo Análisis',
+        inspectorPlaceholder: 'Ingresa tu nombre completo',
+        noConformities: 'No se registraron conformidades específicas.',
+        noNonConformities: 'No se detectaron no conformidades.',
+        noObservations: 'Sin observaciones adicionales.',
+        noActions: 'No se generaron acciones sugeridas específicas.',
+        noAdditional: 'No se identificaron observaciones adicionales.',
+        errorNoImage: 'Por favor selecciona una imagen primero',
+        errorInvalidImage: 'Por favor selecciona un archivo de imagen',
+        errorAnalysis: 'Error en el análisis: ',
+        errorNoDictamen: 'No hay análisis disponible',
+        errorDictamen: 'Error generando dictamen: ',
+        errorDictamenWord: 'Error generando dictamen Word: ',
+        footerSub: 'Sistema Multi-Agente de IA para Inspección Eléctrica',
+    },
+    en: {
+        appTitle: '⚡ Electrical Inspection System',
+        appSubtitle: 'AI-powered automated analysis · NOM-001-SEDE-2012 / NEC Standards',
+        labelNorm: '1. Applicable Standard',
+        labelType: '2. Select installation type',
+        labelInspector: '3. Inspector Name',
+        labelImage: '4. Upload installation image',
+        labelResults: 'Analysis Results',
+        labelClassification: 'Classification',
+        labelSummary: 'Summary',
+        labelDetails: 'Details',
+        uploadHint: '📸 Drag an image here or click to select',
+        selectBtn: 'Select Image',
+        analyzeBtn: '⚡ Start Technical Diagnosis',
+        loadingText: 'Analyzing installation...',
+        step1: '✓ Image received',
+        step2: '⏳ Analyzing visual elements...',
+        step3: '⏳ Checking standards...',
+        step4: '⏳ Generating technical report...',
+        step2done: '✓ Visual analysis complete',
+        step3done: '✓ Standards verification complete',
+        step4done: '✓ Technical report generated',
+        humanReviewTitle: 'HUMAN REVIEW REQUIRED',
+        tabConformities: 'Conformities',
+        tabNonConformities: 'Non-Conformities',
+        tabObservations: 'Observations',
+        tabActions: 'Suggested Actions',
+        tabAdditional: 'Additional Notes',
+        btnPdf: '📄 Download Report (PDF)',
+        btnWord: '📝 Download Report (Word)',
+        btnNew: '🔄 New Analysis',
+        inspectorPlaceholder: 'Enter your full name',
+        noConformities: 'No specific conformities were recorded.',
+        noNonConformities: 'No non-conformities were detected.',
+        noObservations: 'No additional observations.',
+        noActions: 'No specific suggested actions were generated.',
+        noAdditional: 'No additional observations were identified.',
+        errorNoImage: 'Please select an image first',
+        errorInvalidImage: 'Please select an image file',
+        errorAnalysis: 'Analysis error: ',
+        errorNoDictamen: 'No analysis available',
+        errorDictamen: 'Error generating report: ',
+        errorDictamenWord: 'Error generating Word report: ',
+        footerSub: 'Multi-Agent AI System for Electrical Inspection',
+    }
+};
+
+function t(key) {
+    return (UI_STRINGS[currentLanguage] || UI_STRINGS['es'])[key] || key;
+}
+
+// ---- Language Switcher ----
+function setLanguage(lang) {
+    currentLanguage = lang;
+    document.getElementById('html-root').lang = lang;
+
+    // Toggle button active states
+    document.getElementById('lang-es').classList.toggle('active', lang === 'es');
+    document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+
+    // Update all UI text
+    applyUIStrings();
+}
+
+function applyUIStrings() {
+    const set = (id, key) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = t(key);
+    };
+    const setPlaceholder = (id, key) => {
+        const el = document.getElementById(id);
+        if (el) el.placeholder = t(key);
+    };
+
+    set('app-title', 'appTitle');
+    set('app-subtitle', 'appSubtitle');
+    set('label-norm', 'labelNorm');
+    set('label-type', 'labelType');
+    set('label-inspector', 'labelInspector');
+    set('label-image', 'labelImage');
+    set('label-results', 'labelResults');
+    set('label-classification', 'labelClassification');
+    set('label-summary', 'labelSummary');
+    set('label-details', 'labelDetails');
+    set('upload-hint', 'uploadHint');
+    set('select-btn', 'selectBtn');
+    set('analyze-btn', 'analyzeBtn');
+    set('loading-text', 'loadingText');
+    set('human-review-title', 'humanReviewTitle');
+    set('tab-btn-conformities', 'tabConformities');
+    set('tab-btn-non-conformities', 'tabNonConformities');
+    set('tab-btn-observations', 'tabObservations');
+    set('tab-btn-actions', 'tabActions');
+    set('tab-btn-additional', 'tabAdditional');
+    set('btn-pdf', 'btnPdf');
+    set('btn-word', 'btnWord');
+    set('btn-new', 'btnNew');
+    set('footer-sub', 'footerSub');
+    setPlaceholder('inspector-name', 'inspectorPlaceholder');
+
+    // Re-render analyze button text but keep disabled state
+    const analyzeBtn = document.getElementById('analyze-btn');
+    if (analyzeBtn) analyzeBtn.textContent = t('analyzeBtn');
+}
+
+// ---- Init ----
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     checkServerHealth();
@@ -18,10 +172,8 @@ function setupEventListeners() {
     const uploadArea = document.getElementById('upload-area');
     const analyzeBtn = document.getElementById('analyze-btn');
 
-    // Image selection
     imageInput.addEventListener('change', handleImageSelect);
 
-    // Drag and drop
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
         uploadArea.classList.add('dragover');
@@ -34,33 +186,28 @@ function setupEventListeners() {
     uploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         uploadArea.classList.remove('dragover');
-
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             handleImageFile(files[0]);
         }
     });
 
-    // Analyze button
     analyzeBtn.addEventListener('click', analyzeInstallation);
 }
 
 function handleImageSelect(e) {
     const file = e.target.files[0];
-    if (file) {
-        handleImageFile(file);
-    }
+    if (file) handleImageFile(file);
 }
 
 function handleImageFile(file) {
     if (!file.type.startsWith('image/')) {
-        alert('Por favor selecciona un archivo de imagen');
+        alert(t('errorInvalidImage'));
         return;
     }
 
     selectedImage = file;
 
-    // Show preview
     const reader = new FileReader();
     reader.onload = (e) => {
         const preview = document.getElementById('image-preview');
@@ -70,16 +217,15 @@ function handleImageFile(file) {
         previewImg.src = e.target.result;
         preview.style.display = 'block';
         placeholder.style.display = 'none';
-
-        // Enable analyze button
         document.getElementById('analyze-btn').disabled = false;
     };
     reader.readAsDataURL(file);
 }
 
+// ---- Analysis ----
 async function analyzeInstallation() {
     if (!selectedImage) {
-        alert('Por favor selecciona una imagen primero');
+        alert(t('errorNoImage'));
         return;
     }
 
@@ -88,25 +234,20 @@ async function analyzeInstallation() {
     const loading = document.getElementById('loading');
     const analysisResults = document.getElementById('analysis-results');
 
-    // Show results section and loading
     resultsSection.style.display = 'block';
     loading.style.display = 'block';
     analysisResults.style.display = 'none';
-
-    // Scroll to results
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 
     try {
-        // Simulate progress steps
-        await updateStep(1, '✓ Imagen recibida');
+        await updateStep(1, '✓ ' + (currentLanguage === 'en' ? 'Image received' : 'Imagen recibida'));
         await sleep(500);
+        await updateStep(2, t('step2'));
 
-        await updateStep(2, '⏳ Analizando elementos visuales...');
-
-        // Send to server
         const formData = new FormData();
         formData.append('image', selectedImage);
         formData.append('installation_type', installationType);
+        formData.append('language', currentLanguage);
 
         const response = await fetch(`${API_BASE_URL}/api/analyze`, {
             method: 'POST',
@@ -116,257 +257,244 @@ async function analyzeInstallation() {
         const data = await response.json();
 
         if (!response.ok || !data.success) {
-            throw new Error(data.error || `Error del servidor (${response.status})`);
+            throw new Error(data.error || `Server error (${response.status})`);
         }
 
-        await updateStep(2, '✓ Análisis visual completado');
-        await updateStep(3, '⏳ Consultando normativa...');
+        await updateStep(2, t('step2done'));
+        await updateStep(3, t('step3'));
         await sleep(1000);
 
-        await updateStep(3, '✓ Verificación normativa completada');
-        await updateStep(4, '⏳ Generando dictamen...');
+        await updateStep(3, t('step3done'));
+        await updateStep(4, t('step4'));
         await sleep(500);
+        await updateStep(4, t('step4done'));
 
-        await updateStep(4, '✓ Dictamen generado');
-
-        // Store analysis
         currentAnalysis = data.analysis;
         currentImageFilename = data.image_filename;
 
-        // Display results
         displayResults(data.analysis);
 
-        // Hide loading, show results
         loading.style.display = 'none';
         analysisResults.style.display = 'block';
 
     } catch (error) {
         console.error('Error:', error);
-        alert(`Error en el análisis: ${error.message}`);
+        alert(t('errorAnalysis') + error.message);
         loading.style.display = 'none';
     }
 }
 
+// ---- Display Results ----
 function displayResults(analysis) {
+    // Human Review
+    const humanContainer = document.getElementById('human-review-container');
+    const humanText = document.getElementById('human-review-text');
+    const humanReview = analysis.vision_analysis && analysis.vision_analysis.human_review;
+
+    if (humanReview && humanReview.trim().length > 0) {
+        humanContainer.style.display = 'block';
+        humanText.textContent = humanReview;
+    } else {
+        humanContainer.style.display = 'none';
+    }
+
     // Classification
     const classification = analysis.classification;
     const statusBadge = document.getElementById('classification-status');
     const classificationText = document.getElementById('classification-text');
 
     statusBadge.textContent = classification.status;
-    statusBadge.className = 'status-badge ' + classification.status.toLowerCase().replace(/ /g, '-');
+    // Normalize class for CSS matching
+    const statusClass = classification.status.toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace('condicionalmente-conforme', 'condicionalmente-conforme')
+        .replace('conditionally-compliant', 'conditionally-compliant')
+        .replace('non-compliant', 'non-compliant')
+        .replace('no-conforme', 'no-conforme')
+        .replace('compliant', 'compliant')
+        .replace('conforme', 'conforme');
+    statusBadge.className = 'status-badge ' + statusClass;
     classificationText.textContent = classification.justification;
 
-    // Summary
+    // Summary — clean up raw markers
     const summaryContent = document.getElementById('summary-content');
-    summaryContent.innerHTML = `<pre>${analysis.summary}</pre>`;
+    let summaryText = analysis.summary || '';
+    summaryText = summaryText
+        .replace(/={3,}/g, '')
+        .replace(/^#+\s*/gm, '')
+        .trim();
+    summaryContent.innerHTML = `<div style="line-height:1.8; font-size:0.94em;">${summaryText.replace(/\n/g, '<br>')}</div>`;
 
     // Conformities
     const conformitiesTab = document.getElementById('conformities-tab');
     const conformities = analysis.vision_analysis.conformities || [];
-
-    if (conformities.length > 0) {
-        conformitiesTab.innerHTML = '<ul>' +
-            conformities.map(c => `<li>✓ ${c}</li>`).join('') +
-            '</ul>';
-    } else {
-        conformitiesTab.innerHTML = '<p>No se registraron conformidades específicas.</p>';
-    }
+    conformitiesTab.innerHTML = conformities.length > 0
+        ? '<ul>' + conformities.map(c => `<li>✓ ${escapeHtml(c)}</li>`).join('') + '</ul>'
+        : `<p>${t('noConformities')}</p>`;
 
     // Non-conformities
     const nonConformitiesTab = document.getElementById('non-conformities-tab');
     const nonConformities = analysis.verified_non_conformities || [];
-
-    if (nonConformities.length > 0) {
-        nonConformitiesTab.innerHTML = '<ul>' +
-            nonConformities.map(nc => {
-                const article = nc.article ? ` (Art. ${nc.article})` : '';
-                const severity = nc.severity || 'medium';
-                const icon = severity === 'high' ? '🔴' : severity === 'medium' ? '🟡' : '🟢';
-                return `<li>${icon} ${nc.description}${article}</li>`;
-            }).join('') +
-            '</ul>';
-    } else {
-        nonConformitiesTab.innerHTML = '<p>No se detectaron no conformidades.</p>';
-    }
+    nonConformitiesTab.innerHTML = nonConformities.length > 0
+        ? '<ul>' + nonConformities.map(nc => {
+            const article = nc.article ? ` (${currentLanguage === 'en' ? 'Art.' : 'Art.'} ${nc.article})` : '';
+            const severity = nc.severity || 'medium';
+            const icon = severity === 'high' ? '🔴' : severity === 'medium' ? '🟡' : '🟢';
+            return `<li>${icon} ${escapeHtml(nc.description)}${article}</li>`;
+          }).join('') + '</ul>'
+        : `<p>${t('noNonConformities')}</p>`;
 
     // Observations
     const observationsTab = document.getElementById('observations-tab');
     const observations = analysis.vision_analysis.observations || '';
+    observationsTab.innerHTML = observations
+        ? `<p>${escapeHtml(observations)}</p>`
+        : `<p>${t('noObservations')}</p>`;
 
-    if (observations) {
-        observationsTab.innerHTML = `<p>${observations}</p>`;
-    } else {
-        observationsTab.innerHTML = '<p>Sin observaciones adicionales.</p>';
-    }
-
-    // Acciones Sugeridas (from acciones_sugeridas or recommendations)
+    // Suggested Actions
     const actionsTab = document.getElementById('actions-tab');
-    const actions = analysis.vision_analysis.acciones_sugeridas || analysis.vision_analysis.recommendations || [];
-
+    const actions = analysis.vision_analysis.acciones_sugeridas
+        || analysis.vision_analysis.recommendations
+        || analysis.vision_analysis.suggested_actions
+        || [];
     if (actions && actions.length > 0) {
-        actionsTab.innerHTML = '<ul>' +
-            actions.map(action => `<li>• ${action}</li>`).join('') +
-            '</ul>';
+        actionsTab.innerHTML = '<ul>' + actions.map(a => `<li>• ${escapeHtml(a)}</li>`).join('') + '</ul>';
     } else {
-        // If no actions list, try to show dictamen
         const dictamen = analysis.vision_analysis.dictamen || '';
-        if (dictamen) {
-            actionsTab.innerHTML = `<p>${dictamen}</p>`;
-        } else {
-            actionsTab.innerHTML = '<p>No se generaron acciones sugeridas específicas.</p>';
-        }
+        actionsTab.innerHTML = dictamen
+            ? `<p>${escapeHtml(dictamen)}</p>`
+            : `<p>${t('noActions')}</p>`;
     }
 
-    // Observaciones Adicionales (from observaciones_adicionales or risks)
+    // Additional Observations
     const additionalTab = document.getElementById('additional-tab');
-    const additionalObs = analysis.vision_analysis.observaciones_adicionales || '';
+    const additionalObs = analysis.vision_analysis.observaciones_adicionales || analysis.vision_analysis.additional_observations || '';
     const risks = analysis.vision_analysis.risks || [];
-
     if (additionalObs) {
-        additionalTab.innerHTML = `<p>${additionalObs}</p>`;
+        additionalTab.innerHTML = `<p>${escapeHtml(additionalObs)}</p>`;
     } else if (risks && risks.length > 0) {
-        additionalTab.innerHTML = '<ul>' +
-            risks.map(risk => `<li>⚠️ ${risk}</li>`).join('') +
-            '</ul>';
+        additionalTab.innerHTML = '<ul>' + risks.map(r => `<li>⚠️ ${escapeHtml(r)}</li>`).join('') + '</ul>';
     } else {
-        additionalTab.innerHTML = '<p>No se identificaron observaciones adicionales.</p>';
+        additionalTab.innerHTML = `<p>${t('noAdditional')}</p>`;
     }
 }
 
-function showTab(tabName) {
-    // Hide all tabs
-    document.querySelectorAll('.tab-panel').forEach(panel => {
-        panel.classList.remove('active');
-    });
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-
-    // Show selected tab
+// ---- Tab Switcher ----
+function showTab(tabName, btnEl) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById(`${tabName}-tab`).classList.add('active');
-    event.target.classList.add('active');
+    if (btnEl) btnEl.classList.add('active');
 }
 
+// ---- Downloads ----
 async function downloadDictamen() {
-    if (!currentAnalysis) {
-        alert('No hay análisis disponible');
-        return;
-    }
+    if (!currentAnalysis) { alert(t('errorNoDictamen')); return; }
 
     try {
-        // Get inspector name
-        const inspectorName = document.getElementById('inspector-name').value.trim() || '[ Tu Nombre ]';
-
+        const inspectorName = document.getElementById('inspector-name').value.trim() || '[ Inspector ]';
         const response = await fetch(`${API_BASE_URL}/api/generate-dictamen`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 analysis: currentAnalysis,
                 image_filename: currentImageFilename,
+                language: currentLanguage,
                 inspection_data: {
                     folio: 'AUTO-' + Date.now(),
-                    fecha: new Date().toLocaleDateString('es-MX'),
+                    fecha: new Date().toLocaleDateString(currentLanguage === 'en' ? 'en-US' : 'es-MX'),
                     inspector_name: inspectorName
                 }
             })
         });
-
         const data = await response.json();
-
         if (data.success) {
-            // Download file
             window.location.href = `/api/download/${data.filename}`;
         } else {
-            alert('Error generando dictamen: ' + data.error);
+            alert(t('errorDictamen') + data.error);
         }
-
     } catch (error) {
         console.error('Error:', error);
-        alert('Error al generar dictamen');
+        alert(t('errorDictamen') + error.message);
     }
 }
 
 async function downloadDictamenWord() {
-    if (!currentAnalysis) {
-        alert('No hay análisis disponible');
-        return;
-    }
+    if (!currentAnalysis) { alert(t('errorNoDictamen')); return; }
 
     try {
-        // Get inspector name
-        const inspectorName = document.getElementById('inspector-name').value.trim() || '[ Tu Nombre ]';
-
+        const inspectorName = document.getElementById('inspector-name').value.trim() || '[ Inspector ]';
         const response = await fetch(`${API_BASE_URL}/api/generate-dictamen-word`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 analysis: currentAnalysis,
                 image_filename: currentImageFilename,
+                language: currentLanguage,
                 inspection_data: {
                     folio: 'AUTO-' + Date.now(),
-                    fecha: new Date().toLocaleDateString('es-MX'),
+                    fecha: new Date().toLocaleDateString(currentLanguage === 'en' ? 'en-US' : 'es-MX'),
                     inspector_name: inspectorName
                 }
             })
         });
-
         const data = await response.json();
-
         if (data.success) {
-            // Download file
             window.location.href = `/api/download/${data.filename}`;
         } else {
-            alert('Error generando dictamen Word: ' + data.error);
+            alert(t('errorDictamenWord') + data.error);
         }
-
     } catch (error) {
         console.error('Error:', error);
-        alert('Error al generar dictamen Word');
+        alert(t('errorDictamenWord') + error.message);
     }
 }
 
+// ---- New Analysis ----
 function newAnalysis() {
-    // Reset
     selectedImage = null;
     currentAnalysis = null;
     currentImageFilename = null;
 
-    // Hide results
     document.getElementById('results-section').style.display = 'none';
-
-    // Reset image
     document.getElementById('image-preview').style.display = 'none';
     document.querySelector('.upload-placeholder').style.display = 'block';
     document.getElementById('analyze-btn').disabled = true;
 
-    // Reset steps
-    for (let i = 1; i <= 4; i++) {
-        const step = document.getElementById(`step-${i}`);
-        if (i === 1) {
-            step.textContent = '✓ Imagen recibida';
-        } else {
-            step.textContent = step.textContent.replace('✓', '⏳');
-        }
-    }
+    // Reset progress steps
+    document.getElementById('step-1').textContent = t('step1');
+    document.getElementById('step-2').textContent = t('step2');
+    document.getElementById('step-3').textContent = t('step3');
+    document.getElementById('step-4').textContent = t('step4');
 
-    // Scroll to top
+    // Reset tabs — first is active
+    document.querySelectorAll('.tab-panel').forEach((p, i) => {
+        p.classList.toggle('active', i === 0);
+    });
+    document.querySelectorAll('.tab').forEach((t, i) => {
+        t.classList.toggle('active', i === 0);
+    });
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// ---- Helpers ----
 async function updateStep(stepNum, text) {
     const step = document.getElementById(`step-${stepNum}`);
-    if (step) {
-        step.textContent = text;
-    }
+    if (step) step.textContent = text;
 }
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function escapeHtml(str) {
+    if (typeof str !== 'string') return String(str || '');
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
 async function checkServerHealth() {

@@ -26,6 +26,15 @@ class DetectionParser:
         """
         sections = self._extract_sections(response_text)
         
+        # Extract human review flag
+        human_review_raw = sections.get('requiere_revision_humana', '').strip()
+        # Treat NINGUNA / NONE / empty as "no review needed"
+        no_review_markers = ['ninguna', 'none', 'n/a', 'no', '']
+        human_review = (
+            None if human_review_raw.lower() in no_review_markers
+            else human_review_raw
+        )
+        
         return {
             'raw_response': response_text,
             'elements_identified': sections.get('elementos_identificados', []),
@@ -33,7 +42,8 @@ class DetectionParser:
             'non_conformities': sections.get('no_conformidades', []),
             'observations': sections.get('observaciones', ''),
             'risks': sections.get('riesgos', []),
-            'recommendations': sections.get('recomendaciones', [])
+            'recommendations': sections.get('recomendaciones', []),
+            'human_review': human_review,
         }
     
     def _extract_sections(self, text: str) -> Dict[str, Any]:
@@ -140,7 +150,14 @@ class DetectionParser:
             actions = self._extract_list_items(acciones_match.group(1))
             sections['acciones_sugeridas'] = actions
 
-        
+        # Extract HUMAN REVIEW section (ES and EN variants)
+        human_review_match = re.search(
+            r'##\s*(?:REQUIERE\s+REVISIÓN\s+HUMANA|HUMAN\s+REVIEW\s+REQUIRED?)(.*?)(?=##|$)',
+            text, re.DOTALL | re.IGNORECASE
+        )
+        if human_review_match:
+            sections['requiere_revision_humana'] = human_review_match.group(1).strip()
+
         return sections
     
     def _extract_list_items(self, text: str) -> List[str]:

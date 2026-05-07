@@ -19,7 +19,8 @@ class IntegratorAgent:
         self.normative_agent = NormativeAgent()
     
     def generate_complete_analysis(self, image_paths: List[str], installation_type: str,
-                                   additional_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                                   additional_info: Optional[Dict[str, Any]] = None,
+                                   language: str = 'es') -> Dict[str, Any]:
         """
         Generate complete analysis integrating vision and normative verification.
         
@@ -38,9 +39,9 @@ class IntegratorAgent:
             image_paths = [image_paths]
         
         # Step 1: Visual analysis
-        print("\n[1/3] Visual Analysis...")
+        print(f"\n[1/3] Visual Analysis (language={language})...")
         vision_results = self.vision_agent.analyze_image(
-            image_paths, installation_type, additional_info
+            image_paths, installation_type, additional_info, language=language
         )
         
         # Step 2: Normative verification (DISABLED for speed - Vision Agent is sufficient)
@@ -57,7 +58,7 @@ class IntegratorAgent:
         
         # Step 3: Generate final classification
         print("\n[3/3] Generating Classification...")
-        classification = self._classify_installation(verified_nc)
+        classification = self._classify_installation(verified_nc, language=language)
         
         # Build complete report
         report = {
@@ -68,96 +69,121 @@ class IntegratorAgent:
             'vision_analysis': vision_results,
             'verified_non_conformities': verified_nc,
             'classification': classification,
-            'summary': self._generate_summary(vision_results, verified_nc, classification)
+            'summary': self._generate_summary(vision_results, verified_nc, classification, language=language)
         }
         
         print(f"\n✓ Analysis Complete: {classification['status']}")
         
         return report
     
-    def _classify_installation(self, verified_non_conformities: List[Dict[str, Any]]) -> Dict[str, str]:
+    def _classify_installation(self, verified_non_conformities: List[Dict[str, Any]],
+                               language: str = 'es') -> Dict[str, str]:
         """
         Classify installation based on verified non-conformities.
-        
-        STRICT POLICY: Any non-conformity = NO CONFORME
-        
-        Args:
-            verified_non_conformities: List of verified non-conformities
-            
-        Returns:
-            Classification with status and justification
+        STRICT POLICY: Any non-conformity = NON-COMPLIANT / NO CONFORME
         """
-        # STRICT: If there are ANY non-conformities, it's NO CONFORME
+        en = (language == 'en')
+
         if verified_non_conformities and len(verified_non_conformities) > 0:
-            # Count by severity
-            high_severity = sum(1 for nc in verified_non_conformities if nc.get('severity') == 'high')
+            high_severity   = sum(1 for nc in verified_non_conformities if nc.get('severity') == 'high')
             medium_severity = sum(1 for nc in verified_non_conformities if nc.get('severity') == 'medium')
-            low_severity = sum(1 for nc in verified_non_conformities if nc.get('severity') == 'low')
-            
-            total_nc = len(verified_non_conformities)
-            
+            total_nc        = len(verified_non_conformities)
+
             if high_severity > 0:
                 return {
-                    'status': 'NO CONFORME',
-                    'justification': f'Se detectaron {high_severity} no conformidad(es) CRÍTICA(S) que representan riesgo significativo para la seguridad. Requiere corrección inmediata.'
+                    'status': 'NON-COMPLIANT' if en else 'NO CONFORME',
+                    'justification': (
+                        f'{high_severity} CRITICAL non-conformity/ies detected, representing a significant safety risk. Immediate correction required.'
+                        if en else
+                        f'Se detectaron {high_severity} no conformidad(es) CRÍTICA(S) que representan riesgo significativo. Requiere corrección inmediata.'
+                    )
                 }
             elif medium_severity > 0:
                 return {
-                    'status': 'NO CONFORME',
-                    'justification': f'Se detectaron {medium_severity} no conformidad(es) de severidad media. La instalación no cumple con los requisitos normativos.'
+                    'status': 'NON-COMPLIANT' if en else 'NO CONFORME',
+                    'justification': (
+                        f'{medium_severity} medium-severity non-conformity/ies detected. Installation does not meet regulatory requirements.'
+                        if en else
+                        f'Se detectaron {medium_severity} no conformidad(es) de severidad media. La instalación no cumple con los requisitos normativos.'
+                    )
                 }
             else:
                 return {
-                    'status': 'NO CONFORME',
-                    'justification': f'Se detectaron {total_nc} no conformidad(es). La instalación requiere correcciones para cumplir con la normativa.'
+                    'status': 'NON-COMPLIANT' if en else 'NO CONFORME',
+                    'justification': (
+                        f'{total_nc} non-conformity/ies detected. Installation requires corrections to meet the standard.'
+                        if en else
+                        f'Se detectaron {total_nc} no conformidad(es). La instalación requiere correcciones para cumplir con la normativa.'
+                    )
                 }
-        
-        # Only CONFORME if absolutely no issues found
+
         return {
-            'status': 'CONFORME',
-            'justification': 'La instalación cumple con todos los requisitos normativos verificados. No se detectaron no conformidades.'
+            'status': 'COMPLIANT' if en else 'CONFORME',
+            'justification': (
+                'Installation meets all verified regulatory requirements. No non-conformities were detected.'
+                if en else
+                'La instalación cumple con todos los requisitos normativos verificados. No se detectaron no conformidades.'
+            )
         }
     
     def _generate_summary(self, vision_results: Dict[str, Any],
                          verified_nc: List[Dict[str, Any]],
-                         classification: Dict[str, str]) -> str:
-        """Generate executive summary of the analysis."""
-        summary = f"=== RESUMEN EJECUTIVO ===\n\n"
-        summary += f"Clasificación: {classification['status']}\n"
-        summary += f"{classification['justification']}\n\n"
-        
-        # Conformities
-        conformities = vision_results.get('conformities', [])
-        summary += f"Conformidades: {len(conformities)}\n"
-        
-        # Non-conformities with details
-        high = [nc for nc in verified_nc if nc.get('severity') == 'high']
-        medium = [nc for nc in verified_nc if nc.get('severity') == 'medium']
-        low = [nc for nc in verified_nc if nc.get('severity') == 'low']
-        
-        summary += f"\nNo Conformidades: {len(verified_nc)}\n"
-        
-        if high:
-            summary += f"\n🔴 CRÍTICAS ({len(high)}):\n"
-            for nc in high[:10]:  # Show up to 10
-                article = f"Art. {nc.get('article')}" if nc.get('article') else "Sin ref."
-                desc = nc['description'][:150]  # Shorter for readability
-                summary += f"  • {desc}... ({article})\n"
-        
-        if medium:
-            summary += f"\n🟡 MEDIA ({len(medium)}):\n"
-            for nc in medium[:10]:  # Show up to 10
-                article = f"Art. {nc.get('article')}" if nc.get('article') else "Sin ref."
-                desc = nc['description'][:150]
-                summary += f"  • {desc}... ({article})\n"
-        
-        if low:
-            summary += f"\n🟢 BAJA ({len(low)}):\n"
-            for nc in low[:10]:  # Show up to 10
-                article = f"Art. {nc.get('article')}" if nc.get('article') else "Sin ref."
-                desc = nc['description'][:150]
-                summary += f"  • {desc}... ({article})\n"
-        
+                         classification: Dict[str, str],
+                         language: str = 'es') -> str:
+        """Generate executive summary of the analysis (bilingual)."""
+        en = (language == 'en')
+
+        if en:
+            summary  = "EXECUTIVE SUMMARY\n\n"
+            summary += f"Classification: {classification['status']}\n"
+            summary += f"{classification['justification']}\n\n"
+            conformities = vision_results.get('conformities', [])
+            summary += f"Conformities: {len(conformities)}\n"
+            summary += f"Non-Conformities: {len(verified_nc)}\n"
+            high   = [nc for nc in verified_nc if nc.get('severity') == 'high']
+            medium = [nc for nc in verified_nc if nc.get('severity') == 'medium']
+            low    = [nc for nc in verified_nc if nc.get('severity') == 'low']
+            if high:
+                summary += f"\n🔴 CRITICAL ({len(high)}):\n"
+                for nc in high[:10]:
+                    article = f"Art. {nc.get('article')}" if nc.get('article') else "No ref."
+                    summary += f"  • {nc['description'][:150]} ({article})\n"
+            if medium:
+                summary += f"\n🟡 MEDIUM ({len(medium)}):\n"
+                for nc in medium[:10]:
+                    article = f"Art. {nc.get('article')}" if nc.get('article') else "No ref."
+                    summary += f"  • {nc['description'][:150]} ({article})\n"
+            if low:
+                summary += f"\n🟢 LOW ({len(low)}):\n"
+                for nc in low[:10]:
+                    article = f"Art. {nc.get('article')}" if nc.get('article') else "No ref."
+                    summary += f"  • {nc['description'][:150]} ({article})\n"
+        else:
+            summary  = "RESUMEN EJECUTIVO\n\n"
+            summary += f"Clasificación: {classification['status']}\n"
+            summary += f"{classification['justification']}\n\n"
+            conformities = vision_results.get('conformities', [])
+            summary += f"Conformidades: {len(conformities)}\n"
+            summary += f"No Conformidades: {len(verified_nc)}\n"
+            high   = [nc for nc in verified_nc if nc.get('severity') == 'high']
+            medium = [nc for nc in verified_nc if nc.get('severity') == 'medium']
+            low    = [nc for nc in verified_nc if nc.get('severity') == 'low']
+            if high:
+                summary += f"\n🔴 CRÍTICAS ({len(high)}):\n"
+                for nc in high[:10]:
+                    article = f"Art. {nc.get('article')}" if nc.get('article') else "Sin ref."
+                    summary += f"  • {nc['description'][:150]} ({article})\n"
+            if medium:
+                summary += f"\n🟡 MEDIA ({len(medium)}):\n"
+                for nc in medium[:10]:
+                    article = f"Art. {nc.get('article')}" if nc.get('article') else "Sin ref."
+                    summary += f"  • {nc['description'][:150]} ({article})\n"
+            if low:
+                summary += f"\n🟢 BAJA ({len(low)}):\n"
+                for nc in low[:10]:
+                    article = f"Art. {nc.get('article')}" if nc.get('article') else "Sin ref."
+                    summary += f"  • {nc['description'][:150]} ({article})\n"
+
         return summary
     
     def generate_dictamen_data(self, analysis_report: Dict[str, Any],
