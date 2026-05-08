@@ -7,6 +7,7 @@ const API_BASE_URL = window.location.origin;
 let selectedImage = null;
 let currentAnalysis = null;
 let currentImageFilenames = [];  // Array — stores all uploaded image filenames
+let currentImagePaths = [];      // Full server-side paths for dictamen generation
 let currentLanguage = 'es';
 
 // ---- UI String Dictionaries ----
@@ -270,8 +271,9 @@ async function analyzeInstallation() {
         await updateStep(4, t('step4done'), true);
 
         currentAnalysis = data.analysis;
-        // Store ALL image filenames returned by server
+        // Store ALL image filenames and full paths returned by server
         currentImageFilenames = data.image_filenames || (data.image_filename ? [data.image_filename] : []);
+        currentImagePaths = data.image_paths || [];
 
         displayResults(data.analysis);
 
@@ -400,6 +402,7 @@ async function downloadDictamen() {
             body: JSON.stringify({
                 analysis: currentAnalysis,
                 image_filenames: currentImageFilenames,
+                image_paths: currentImagePaths,
                 image_filename: currentImageFilenames[0] || null,
                 language: currentLanguage,
                 inspection_data: {
@@ -432,6 +435,7 @@ async function downloadDictamenWord() {
             body: JSON.stringify({
                 analysis: currentAnalysis,
                 image_filenames: currentImageFilenames,
+                image_paths: currentImagePaths,
                 image_filename: currentImageFilenames[0] || null,
                 language: currentLanguage,
                 inspection_data: {
@@ -458,6 +462,7 @@ function newAnalysis() {
     selectedImage = null;
     currentAnalysis = null;
     currentImageFilenames = [];
+    currentImagePaths = [];
 
     document.getElementById('results-section').style.display = 'none';
     document.getElementById('image-preview').style.display = 'none';
