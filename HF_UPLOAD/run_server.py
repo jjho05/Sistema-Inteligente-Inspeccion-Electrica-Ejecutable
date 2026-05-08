@@ -144,53 +144,44 @@ def analyze_installation():
             try:
                 unique_name = f"{uuid.uuid4()}"
 
+                from PIL import Image as PILImage
+                import io
+
+                def save_as_jpeg(img_data, filename_prefix, uploads_directory):
+                    try:
+                        img = PILImage.open(img_data)
+                        if img.mode != 'RGB':
+                            img = img.convert('RGB')
+                        filename = f"{filename_prefix}.jpg"
+                        path = uploads_directory / filename
+                        img.save(str(path), format='JPEG')
+                        return filename, str(path)
+                    except Exception as e:
+                        print(f"Error converting image to JPEG: {e}")
+                        raise e
+
                 if kind == 'file':
-                    ext = Path(item.filename).suffix or '.jpg'
-                    filename = f"{unique_name}{ext}"
-                    path = uploads_dir / filename
-                    item.save(str(path))
-                    saved_paths.append(str(path))
+                    filename, path_str = save_as_jpeg(item, unique_name, uploads_dir)
+                    saved_paths.append(path_str)
                     saved_filenames.append(filename)
 
                 elif kind == 'url':
                     import requests
                     
                     if item.startswith('data:image/'):
-                        # Handle base64 encoded data URI
                         import base64
                         header, encoded = item.split(",", 1)
-                        ext = '.jpg'
-                        if 'png' in header: ext = '.png'
-                        elif 'webp' in header: ext = '.webp'
-                        
-                        filename = f"{unique_name}{ext}"
-                        path = uploads_dir / filename
-                        
-                        with open(path, "wb") as f:
-                            f.write(base64.b64decode(encoded))
-                            
-                        saved_paths.append(str(path))
+                        img_data = io.BytesIO(base64.b64decode(encoded))
+                        filename, path_str = save_as_jpeg(img_data, unique_name, uploads_dir)
+                        saved_paths.append(path_str)
                         saved_filenames.append(filename)
                         
                     else:
-                        # Handle standard URL download
-                        ext = '.jpg'
-                        if '.' in item.split('/')[-1]:
-                            potential_ext = '.' + item.split('/')[-1].split('.')[-1].split('?')[0]
-                            if len(potential_ext) <= 5: # prevent huge extensions from weird urls
-                                ext = potential_ext
-                                
-                        filename = f"{unique_name}{ext}"
-                        path = uploads_dir / filename
-                        
-                        # Use requests with strict 10s timeout to prevent Hugging Face hangs
                         response = requests.get(item, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
                         response.raise_for_status()
-                        
-                        with open(path, "wb") as f:
-                            f.write(response.content)
-                            
-                        saved_paths.append(str(path))
+                        img_data = io.BytesIO(response.content)
+                        filename, path_str = save_as_jpeg(img_data, unique_name, uploads_dir)
+                        saved_paths.append(path_str)
                         saved_filenames.append(filename)
 
             except Exception as img_err:
@@ -237,6 +228,12 @@ def analyze_installation():
 def generate_dictamen():
     """Generate PDF dictamen document directly."""
     try:
+        global integrator
+        if integrator is None:
+            # Re-initialize if container restarted
+            from backend.agents.integrator_agent import IntegratorAgent
+            integrator = IntegratorAgent()
+            
         data = request.json
         analysis = data.get('analysis')
         inspection_data = data.get('inspection_data', {})
@@ -291,6 +288,12 @@ def generate_dictamen():
 def generate_dictamen_word():
     """Generate Word dictamen document."""
     try:
+        global integrator
+        if integrator is None:
+            # Re-initialize if container restarted
+            from backend.agents.integrator_agent import IntegratorAgent
+            integrator = IntegratorAgent()
+            
         data = request.json
         analysis = data.get('analysis')
         inspection_data = data.get('inspection_data', {})
