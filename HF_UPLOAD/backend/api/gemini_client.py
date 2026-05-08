@@ -116,13 +116,22 @@ class GeminiClient:
             for path in image_paths:
                 try:
                     img = Image.open(path)
-                    # Convert PIL Image to bytes for the new SDK
+                    
+                    # Gemini supported formats: JPEG, PNG, WEBP, HEIC
+                    # If it's a different format (like BMP, TIFF, GIF), or we want to be safe, convert to JPEG.
+                    supported_formats = ['JPEG', 'PNG', 'WEBP']
+                    fmt = img.format if img.format in supported_formats else 'JPEG'
+                    
+                    if fmt == 'JPEG' and img.mode != 'RGB':
+                        img = img.convert('RGB')
+                        
+                    # Convert PIL Image to bytes
                     img_byte_arr = io.BytesIO()
-                    img.save(img_byte_arr, format=img.format or 'JPEG')
+                    img.save(img_byte_arr, format=fmt)
                     img_bytes = img_byte_arr.getvalue()
                     
                     # Create Part with bytes and mime_type
-                    mime_type = f"image/{ (img.format or 'JPEG').lower() }"
+                    mime_type = f"image/{fmt.lower()}"
                     if mime_type == "image/jpg": mime_type = "image/jpeg"
                     
                     contents.append(types.Part.from_bytes(
