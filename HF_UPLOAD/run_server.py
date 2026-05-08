@@ -130,47 +130,41 @@ def analyze_installation():
         if not images_to_process:
             return jsonify({'success': False, 'error': 'No images provided'}), 400
         
-        # Save images temporarily
-        import tempfile
+        # Save images to persistent uploads dir (so dictamen generation can find them later)
         import uuid
         import urllib.request
-        
-        temp_dir = Path(tempfile.gettempdir()) / "electrica_temp"
-        temp_dir.mkdir(parents=True, exist_ok=True)
-        
+
+        uploads_dir = Path("data/uploads")
+        uploads_dir.mkdir(parents=True, exist_ok=True)
+
         saved_paths = []
         saved_filenames = []
         
         for kind, item in images_to_process:
             try:
                 unique_name = f"{uuid.uuid4()}"
-                
+
                 if kind == 'file':
                     ext = Path(item.filename).suffix or '.jpg'
                     filename = f"{unique_name}{ext}"
-                    path = temp_dir / filename
+                    path = uploads_dir / filename
                     item.save(str(path))
                     saved_paths.append(str(path))
                     saved_filenames.append(filename)
-                    
+
                 elif kind == 'url':
-                    # Download URL
-                    ext = '.jpg' # Default extension if unknown
+                    ext = '.jpg'
                     if '.' in item.split('/')[-1]:
                         ext = '.' + item.split('/')[-1].split('.')[-1].split('?')[0]
-                    
                     filename = f"{unique_name}{ext}"
-                    path = temp_dir / filename
-                    
-                    # Download with user agent to avoid blocks
+                    path = uploads_dir / filename
                     opener = urllib.request.build_opener()
                     opener.addheaders = [('User-agent', 'Mozilla/5.0')]
                     urllib.request.install_opener(opener)
                     urllib.request.urlretrieve(item, str(path))
-                    
                     saved_paths.append(str(path))
                     saved_filenames.append(filename)
-                    
+
             except Exception as img_err:
                 print(f"Error processing image {item}: {img_err}")
                 continue
@@ -199,8 +193,9 @@ def analyze_installation():
         return jsonify({
             'success': True,
             'analysis': analysis,
-            'image_filenames': saved_filenames, # Return list
-            'image_filename': saved_filenames[0] if saved_filenames else None # Legacy compatibility
+            'image_filenames': saved_filenames,
+            'image_paths': saved_paths,          # Full absolute paths for dictamen generation
+            'image_filename': saved_filenames[0] if saved_filenames else None
         })
         
     except Exception as e:
@@ -221,21 +216,30 @@ def generate_dictamen():
         # Generate dictamen data
         dictamen_data = integrator.generate_dictamen_data(analysis, inspection_data)
         
-        # Resolve image paths
+        # Resolve image paths — prefer full paths sent from frontend, fall back to uploads dir
+        image_paths_from_req = data.get('image_paths', [])
         image_filenames = data.get('image_filenames', [])
-        if 'image_filename' in data and not image_filenames:
+        if not image_filenames and data.get('image_filename'):
             image_filenames = [data['image_filename']]
         language = data.get('language', 'es')
 
         image_paths = []
-        import tempfile
-        temp_dir = Path(tempfile.gettempdir()) / "electrica_temp"
+        if image_paths_from_req:
+            # Use full paths directly if they exist on disk
+            for p in image_paths_from_req:
+                if p and Path(p).exists():
+                    image_paths.append(p)
 
-        for fname in image_filenames:
-            if fname:
-                path = temp_dir / fname
-                if path.exists():
-                    image_paths.append(str(path))
+        if not image_paths:
+            # Fall back: look in persistent uploads dir
+            uploads_dir = Path("data/uploads")
+            for fname in image_filenames:
+                if fname:
+                    p = uploads_dir / fname
+                    if p.exists():
+                        image_paths.append(str(p))
+
+        print(f"PDF generation: found {len(image_paths)} image(s) on disk")
 
         # Generate PDF
         from backend.utils.pdf_generator import PDFGenerator
@@ -266,21 +270,28 @@ def generate_dictamen_word():
         # Generate dictamen data
         dictamen_data = integrator.generate_dictamen_data(analysis, inspection_data)
         
-        # Resolve image paths
+        # Resolve image paths — prefer full paths sent from frontend, fall back to uploads dir
+        image_paths_from_req = data.get('image_paths', [])
         image_filenames = data.get('image_filenames', [])
-        if 'image_filename' in data and not image_filenames:
+        if not image_filenames and data.get('image_filename'):
             image_filenames = [data['image_filename']]
         language = data.get('language', 'es')
 
         image_paths = []
-        import tempfile
-        temp_dir = Path(tempfile.gettempdir()) / "electrica_temp"
+        if image_paths_from_req:
+            for p in image_paths_from_req:
+                if p and Path(p).exists():
+                    image_paths.append(p)
 
-        for fname in image_filenames:
-            if fname:
-                path = temp_dir / fname
-                if path.exists():
-                    image_paths.append(str(path))
+        if not image_paths:
+            uploads_dir = Path("data/uploads")
+            for fname in image_filenames:
+                if fname:
+                    p = uploads_dir / fname
+                    if p.exists():
+                        image_paths.append(str(p))
+
+        print(f"Word generation: found {len(image_paths)} image(s) on disk")
 
         # Generate Word document
         from backend.utils.word_generator import WordGenerator
