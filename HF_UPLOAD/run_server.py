@@ -153,17 +153,45 @@ def analyze_installation():
                     saved_filenames.append(filename)
 
                 elif kind == 'url':
-                    ext = '.jpg'
-                    if '.' in item.split('/')[-1]:
-                        ext = '.' + item.split('/')[-1].split('.')[-1].split('?')[0]
-                    filename = f"{unique_name}{ext}"
-                    path = uploads_dir / filename
-                    opener = urllib.request.build_opener()
-                    opener.addheaders = [('User-agent', 'Mozilla/5.0')]
-                    urllib.request.install_opener(opener)
-                    urllib.request.urlretrieve(item, str(path))
-                    saved_paths.append(str(path))
-                    saved_filenames.append(filename)
+                    import requests
+                    
+                    if item.startswith('data:image/'):
+                        # Handle base64 encoded data URI
+                        import base64
+                        header, encoded = item.split(",", 1)
+                        ext = '.jpg'
+                        if 'png' in header: ext = '.png'
+                        elif 'webp' in header: ext = '.webp'
+                        
+                        filename = f"{unique_name}{ext}"
+                        path = uploads_dir / filename
+                        
+                        with open(path, "wb") as f:
+                            f.write(base64.b64decode(encoded))
+                            
+                        saved_paths.append(str(path))
+                        saved_filenames.append(filename)
+                        
+                    else:
+                        # Handle standard URL download
+                        ext = '.jpg'
+                        if '.' in item.split('/')[-1]:
+                            potential_ext = '.' + item.split('/')[-1].split('.')[-1].split('?')[0]
+                            if len(potential_ext) <= 5: # prevent huge extensions from weird urls
+                                ext = potential_ext
+                                
+                        filename = f"{unique_name}{ext}"
+                        path = uploads_dir / filename
+                        
+                        # Use requests with strict 10s timeout to prevent Hugging Face hangs
+                        response = requests.get(item, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+                        response.raise_for_status()
+                        
+                        with open(path, "wb") as f:
+                            f.write(response.content)
+                            
+                        saved_paths.append(str(path))
+                        saved_filenames.append(filename)
 
             except Exception as img_err:
                 print(f"Error processing image {item}: {img_err}")
