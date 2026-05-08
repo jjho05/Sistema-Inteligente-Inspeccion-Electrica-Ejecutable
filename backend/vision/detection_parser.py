@@ -62,25 +62,25 @@ class DetectionParser:
         has_critical_issues = any(keyword in text_lower for keyword in critical_keywords)
         
         # Extract elements identified
-        elements_match = re.search(r'##\s*(?:Tipo de Instalación|Elementos?\s+(?:Visibles?|Identificados?))(.*?)(?=##|$)', 
+        elements_match = re.search(r'##\s*(?:Tipo de Instalación|Elementos?\s+(?:Visibles?|Identificados?)|Identified\s+Elements?)(.*?)(?=##|$)', 
                                   text, re.DOTALL | re.IGNORECASE)
         if elements_match:
             sections['elementos_identificados'] = self._extract_list_items(elements_match.group(1))
         
-        # Extract conformities
-        conf_match = re.search(r'##\s*(?:✓\s*)?Conformidades?(.*?)(?=##|$)', 
+        # Extract conformities (Spanish and English)
+        conf_match = re.search(r'##\s*(?:✓\s*)?(?:Conformidades?|Conformities?)(.*?)(?=##|$)', 
                               text, re.DOTALL | re.IGNORECASE)
         if conf_match:
             conformities = self._extract_list_items(conf_match.group(1))
-            # Filter out "Ninguna" or similar
-            conformities = [c for c in conformities if 'ninguna' not in c.lower() and len(c) > 10]
+            # Filter out "Ninguna" or "None"
+            conformities = [c for c in conformities if 'ninguna' not in c.lower() and 'none' not in c.lower() and len(c) > 10]
             sections['conformidades'] = conformities
         
-        # Extract non-conformities - try multiple patterns
+        # Extract non-conformities - try multiple patterns (Spanish and English)
         nonconf_patterns = [
-            r'###\s*(?:⚠️\s*)?NO\s+CONFORMIDADES?\s+DETECTADAS?(.*?)(?=###|##|$)',
-            r'##\s*(?:⚠️\s*)?NO\s+CONFORMIDADES?\s+DETECTADAS?(.*?)(?=##|$)',
-            r'##\s*No\s+Conformidades?(.*?)(?=##|$)',
+            r'###\s*(?:⚠️\s*)?(?:NO\s+CONFORMIDADES?\s+DETECTADAS?|NON-?CONFORMITIES?\s+DETECTED)(.*?)(?=###|##|$)',
+            r'##\s*(?:⚠️\s*)?(?:NO\s+CONFORMIDADES?\s+DETECTADAS?|NON-?CONFORMITIES?\s+DETECTED)(.*?)(?=##|$)',
+            r'##\s*(?:No\s+Conformidades?|Non-?Conformities?)(.*?)(?=##|$)',
         ]
         
         non_conformities = []
@@ -112,7 +112,7 @@ class DetectionParser:
         sections['no_conformidades'] = non_conformities[:10]  # Limit to 10 max
         
         # Extract observations
-        obs_match = re.search(r'##\s*Observaciones?(.*?)(?=##|$)', 
+        obs_match = re.search(r'##\s*(?:Observaciones?|Observations?)(.*?)(?=##|$)', 
                              text, re.DOTALL | re.IGNORECASE)
         if obs_match:
             sections['observaciones'] = obs_match.group(1).strip()
@@ -124,13 +124,13 @@ class DetectionParser:
             sections['observaciones_adicionales'] = add_obs_match.group(1).strip()
         
         # Extract risks
-        risk_match = re.search(r'##\s*Riesgos?(.*?)(?=##|$)', 
+        risk_match = re.search(r'##\s*(?:Riesgos?|Risks?)(.*?)(?=##|$)', 
                               text, re.DOTALL | re.IGNORECASE)
         if risk_match:
             sections['riesgos'] = self._extract_list_items(risk_match.group(1))
         
         # Extract recommendations
-        rec_match = re.search(r'##\s*Recomendaciones?(.*?)(?=##|$)', 
+        rec_match = re.search(r'##\s*(?:Recomendaciones?|Recommendations?)(.*?)(?=##|$)', 
                              text, re.DOTALL | re.IGNORECASE)
         if rec_match:
             sections['recomendaciones'] = self._extract_list_items(rec_match.group(1))
@@ -144,7 +144,7 @@ class DetectionParser:
             sections['dictamen'] = dictamen_text
         
         # Extract ACCIONES REQUERIDAS
-        acciones_match = re.search(r'\*{0,2}ACCIONES?\s+REQUERIDAS?:\*{0,2}(.*?)(?=\*{0,2}Dictaminado|$)', 
+        acciones_match = re.search(r'\*{0,2}(?:ACCIONES?\s+REQUERIDAS?|REQUIRED\s+ACTIONS?):\*{0,2}(.*?)(?=\*{0,2}(?:Dictaminado|Evaluated)|$)', 
                                   text, re.DOTALL | re.IGNORECASE)
         if acciones_match:
             actions = self._extract_list_items(acciones_match.group(1))
