@@ -187,9 +187,28 @@ function setupEventListeners() {
     uploadArea.addEventListener('drop', (e) => {
         e.preventDefault();
         uploadArea.classList.remove('dragover');
+        
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             handleImageFile(files[0]);
+        } else {
+            // Handle image URL drag from Google Images
+            const url = e.dataTransfer.getData('text/uri-list');
+            if (url) {
+                handleImageUrl(url);
+            }
+        }
+    });
+
+    // Support paste (Ctrl+V) anywhere on the page
+    document.addEventListener('paste', (e) => {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const blob = items[i].getAsFile();
+                handleImageFile(blob);
+                break;
+            }
         }
     });
 
@@ -208,24 +227,36 @@ function handleImageFile(file) {
     }
 
     selectedImage = file;
+    document.getElementById('dropped-url').value = ''; // clear any URL
 
     const reader = new FileReader();
     reader.onload = (e) => {
-        const preview = document.getElementById('image-preview');
-        const previewImg = document.getElementById('preview-img');
-        const placeholder = document.querySelector('.upload-placeholder');
-
-        previewImg.src = e.target.result;
-        preview.style.display = 'block';
-        placeholder.style.display = 'none';
-        document.getElementById('analyze-btn').disabled = false;
+        showPreview(e.target.result);
     };
     reader.readAsDataURL(file);
 }
 
+function handleImageUrl(url) {
+    selectedImage = null;
+    document.getElementById('dropped-url').value = url;
+    showPreview(url);
+}
+
+function showPreview(src) {
+    const preview = document.getElementById('image-preview');
+    const previewImg = document.getElementById('preview-img');
+    const placeholder = document.querySelector('.upload-placeholder');
+
+    previewImg.src = src;
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+    document.getElementById('analyze-btn').disabled = false;
+}
+
 // ---- Analysis ----
 async function analyzeInstallation() {
-    if (!selectedImage) {
+    const droppedUrl = document.getElementById('dropped-url') ? document.getElementById('dropped-url').value : '';
+    if (!selectedImage && !droppedUrl) {
         alert(t('errorNoImage'));
         return;
     }
@@ -243,10 +274,14 @@ async function analyzeInstallation() {
     try {
         await updateStep(1, '✓ ' + (currentLanguage === 'en' ? 'Image received' : 'Imagen recibida'), true);
         await sleep(300);
-        await updateStep(2, t('step2'), true);  // stays active during API call
+        await updateStep(2, t('step2'), true);
 
         const formData = new FormData();
-        formData.append('image', selectedImage);
+        if (selectedImage) {
+            formData.append('image', selectedImage);
+        } else if (droppedUrl) {
+            formData.append('image_urls', droppedUrl);
+        }
         formData.append('installation_type', installationType);
         formData.append('language', currentLanguage);
 
@@ -254,6 +289,15 @@ async function analyzeInstallation() {
             method: 'POST',
             body: formData
         });
+
+        if (!response.ok) {
+            // Check for Hugging Face 504 Timeout
+            if (response.status === 504) {
+                throw new Error(currentLanguage === 'en' 
+                    ? "Hugging Face Timeout (60s). The image is too complex or the AI took too long. Try a clearer image." 
+                    : "Tiempo de espera agotado (Timeout Hugging Face). La imagen tardó más de 60 segundos en procesarse. Intenta con una imagen más clara.");
+            }
+        }
 
         const data = await response.json();
 
@@ -281,9 +325,19 @@ async function analyzeInstallation() {
         analysisResults.style.display = 'block';
 
     } catch (error) {
-        console.error('Error:', error);
-        alert(t('errorAnalysis') + error.message);
+        console.error('Analysis error:', error);
+        
+        // Handle CORS / Network disconnected errors gracefully
+        let errorMsg = error.message;
+        if (errorMsg === "Failed to fetch" || errorMsg.includes("NetworkError")) {
+            errorMsg = currentLanguage === 'en' 
+                ? "Connection lost or Timeout. Hugging Face cuts connections after 60 seconds. Try a smaller/clearer image."
+                : "Conexión perdida o Timeout. Hugging Face corta el servidor si tarda más de 60 segundos. Intenta con una imagen más pequeña o clara.";
+        }
+        
+        alert(t('errorAnalysis') + errorMsg);
         loading.style.display = 'none';
+        resultsSection.style.display = 'none';
     }
 }
 
@@ -463,6 +517,9 @@ function newAnalysis() {
     currentAnalysis = null;
     currentImageFilenames = [];
     currentImagePaths = [];
+    if (document.getElementById('dropped-url')) {
+        document.getElementById('dropped-url').value = '';
+    }
 
     document.getElementById('results-section').style.display = 'none';
     document.getElementById('image-preview').style.display = 'none';
